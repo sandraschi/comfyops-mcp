@@ -1,0 +1,22 @@
+{
+  "_meta": {
+    "name": "New WF",
+    "description": "Fresh from community",
+    "source_url": "https://civitai.com/models/123"
+  },
+  "3": {
+    "class_type": "KSampler",
+    "inputs": {
+      "seed": 0
+    }
+  },
+  "9": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "8",
+        0
+      ]
+    }
+  }
+}
