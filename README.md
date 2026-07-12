@@ -11,9 +11,29 @@ Wraps ComfyUI so you can generate images, video, and upscales from a prompt — 
   <img src="https://img.shields.io/badge/status-MVP-orange?style=flat-square" alt="Status">
 </p>
 
-## Preview
+## Comfy for the Perplexed
 
-ComfyUI is the industry standard for local AI generation — but its node editor is a wall of patch cables. comfyops-mcp hides all of that behind a simple `comfy_generate(workflow_id, prompt)` call.
+**What's ComfyUI?** It's the engine room of local AI image generation. You connect boxes labelled "KSampler", "CLIP Text Encode", and "VAE Decode" with wires, like a Moog synthesizer made by someone who hates knobs. It's incredibly powerful and completely impenetrable.
+
+**What's this?** comfyops-mcp is a butler for ComfyUI. You tell it what you want — "a cat surfing on a pizza slice" — and it picks the right boxes, wires them up, and hands you the result. No node editor, no patch cables, no "what's a CFG scale?"
+
+**What can it do?**
+- Turn text into images (FLUX.2, SDXL)
+- Turn text or photos into short videos (Wan 2.2)
+- Upscale old low-res images to 4K (ESRGAN)
+- Inpaint: replace parts of an image ("make that car red")
+- Browse and catalog workflows from the community
+- Remember every generation with its seed so you can reproduce it later
+
+**Who is it for?**
+- **You, who just wants pictures** — prompt in, PNG out
+- **You, who has an RTX 4090 gathering dust** — put it to work
+- **You, who already uses ComfyUI** — now your AI assistant can drive it
+- **You, who saw a cool AI image online and wants to make one**
+
+> **If you already know ComfyUI:** comfyops registers curated workflows from `workflows/` as MCP tools. You can add your own with `comfy_workflows/register`. The workflows dir is yours — export from the node editor, drop in, done.
+
+## Preview
 
 | ComfyUI Node Editor (what we wrap) | comfyops Dashboard (what you see) |
 |------------------------------------|-----------------------------------|
