@@ -1,3 +1,6 @@
+screenshots:
+    cd web_sota && npx playwright test --project=screenshots
+
 default: serve
 
 serve:
