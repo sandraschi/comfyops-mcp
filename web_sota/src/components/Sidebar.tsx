@@ -5,11 +5,12 @@ import {
   Image,
   Workflow,
   Cpu,
+  Compass,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
 
-export type Page = "dashboard" | "generate" | "gallery" | "workflows" | "models";
+export type Page = "dashboard" | "generate" | "gallery" | "workflows" | "models" | "discover";
 
 interface NavItem {
   id: Page;
@@ -22,6 +23,7 @@ const navItems: NavItem[] = [
   { id: "generate", label: "Generate", icon: Sparkles },
   { id: "gallery", label: "Gallery", icon: Image },
   { id: "workflows", label: "Workflows", icon: Workflow },
+  { id: "discover", label: "Discover", icon: Compass },
   { id: "models", label: "Models", icon: Cpu },
 ];
 

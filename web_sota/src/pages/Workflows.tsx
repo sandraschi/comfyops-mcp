@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { listWorkflows, getWorkflow, type Workflow, type WorkflowDetail } from "@/lib/api";
-import { Workflow as WorkflowIcon, Loader2, FileText, X, Image, Video } from "lucide-react";
+import { Workflow as WorkflowIcon, Loader2, FileText, X, Image, Video, Search, Tag } from "lucide-react";
 
 export default function WorkflowsPage() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
@@ -9,6 +9,17 @@ export default function WorkflowsPage() {
   const [selected, setSelected] = useState<WorkflowDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [tagFilter, setTagFilter] = useState<string>("");
+
+  const filtered = useMemo(() => {
+    const q = searchQuery.toLowerCase();
+    return workflows.filter((wf) => {
+      const matchSearch = !q || wf.name.toLowerCase().includes(q) || wf.description.toLowerCase().includes(q) || wf.id.toLowerCase().includes(q);
+      const matchTag = !tagFilter || (wf.params as Record<string, string>)?.tags?.includes(tagFilter);
+      return matchSearch && matchTag;
+    });
+  }, [workflows, searchQuery, tagFilter]);
 
   useEffect(() => {
     listWorkflows()
@@ -54,18 +65,34 @@ export default function WorkflowsPage() {
 
   return (
     <div data-testid="workflows" className="page-container">
-      <h2 className="page-title">Workflows</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="page-title mb-0">Workflows</h2>
+        <span className="text-xs text-zinc-500">{filtered.length} of {workflows.length}</span>
+      </div>
+
+      {/* Search bar */}
+      <div className="relative mb-4">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search workflows by name, description, or ID..."
+          data-testid="workflow-search"
+          className="w-full pl-9 pr-4 py-2 rounded-lg border border-zinc-800 bg-zinc-900/50 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-amber-500/30 focus:border-amber-600/30 transition-all"
+        />
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Workflow list */}
         <div className="lg:col-span-2 space-y-3">
-          {workflows.length === 0 ? (
+          {filtered.length === 0 ? (
             <div className="glass-card p-12 text-center">
               <WorkflowIcon className="w-12 h-12 mx-auto mb-3 text-zinc-700" />
               <p className="text-zinc-500">No workflows found.</p>
             </div>
           ) : (
-            workflows.map((wf) => (
+            filtered.map((wf) => (
               <button
                 key={wf.id}
                 onClick={() => openDetail(wf.id)}

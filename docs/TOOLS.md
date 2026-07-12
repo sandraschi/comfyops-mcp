@@ -20,9 +20,9 @@ Generate images, video, upscales, and inpaints via curated ComfyUI workflows.
 
 ## comfy_workflows
 
-Manage the curated workflow depot.
+Manage the curated workflow depot and discover community sources.
 
-**Operations:** list, get, validate, register
+**Operations:** list, get, validate, register, search, discover
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -31,6 +31,17 @@ Manage the curated workflow depot.
 | `workflow_json` | str | For register | Full workflow JSON |
 | `name` | str | No | Display name for register |
 | `description` | str | No | Description for register |
+| `query` | str | For search | Free-text search across names and descriptions |
+| `tags` | str | For search/register | Comma-separated tags (e.g. "t2i,portrait,fast") |
+| `source_url` | str | For register | Original source URL (CivitAI, OpenArt, etc.) |
+
+**`discover`** returns a list of community sources:
+- ComfyUI Examples (official)
+- CivitAI (model + workflow marketplace)
+- OpenArt (community workflows)
+- ComfyUI Registry (official registry)
+- r/comfyui (Reddit)
+- ComfyUI Discord
 
 ## comfy_models
 
@@ -53,7 +64,7 @@ Browse and record generations.
 |-----------|------|----------|-------------|
 | `operation` | Literal | Yes | Operation |
 | `limit` | int | No | Max results (default 20) |
-| `query` | str | For search | Search text |
+| `query` | str | For search | Search text across prompts |
 | `prompt_id` | str | For record | Prompt ID to record |
 
 ## comfy_agentic_assist

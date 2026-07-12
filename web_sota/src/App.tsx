@@ -6,6 +6,7 @@ import Generate from "@/pages/Generate";
 import Gallery from "@/pages/Gallery";
 import Workflows from "@/pages/Workflows";
 import Models from "@/pages/Models";
+import Discover from "@/pages/Discover";
 import { checkHealth } from "@/lib/api";
 
 function PageContent({ page, onNavigate }: { page: Page; onNavigate: (p: string) => void }) {
@@ -18,6 +19,8 @@ function PageContent({ page, onNavigate }: { page: Page; onNavigate: (p: string)
       return <Gallery />;
     case "workflows":
       return <Workflows />;
+    case "discover":
+      return <Discover onNavigate={onNavigate} />;
     case "models":
       return <Models />;
     default:

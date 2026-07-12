@@ -61,15 +61,29 @@ See [INSTALL.md](INSTALL.md) for prerequisites and Claude Desktop config.
 | Dashboard (Vite) | No | Browse workflows, models, library — generation needs ComfyUI |
 | ComfyUI sidecar | Optional | `start.ps1` can launch ComfyUI automatically if `COMFYOPS_COMFYUI_DIR` is set |
 
+## Workflow Depot
+
+comfyops ships with 6 curated workflows, but the community has thousands. Use `comfy_workflows/discover` to pull from community sources, or `comfy_workflows/register` to add your own exports from the ComfyUI node editor. The webapp has a full recipe browser with tags, metadata, and search.
+
 ## Tools
 
 | Tool | Ops |
 |------|-----|
 | `comfy_generate` | image, video, upscale, inpaint, edit |
-| `comfy_workflows` | list, get, validate, register |
+| `comfy_workflows` | list, get, validate, register, search, discover |
 | `comfy_models` | list_installed, check_vram, health |
 | `comfy_library` | recent, search, record |
 | `comfy_agentic_assist` | Multi-step via MCP sampling |
+
+## Community
+
+- [ComfyUI GitHub](https://github.com/comfyanonymous/ComfyUI) — the project we wrap
+- [ComfyUI Discord](https://discord.gg/comfyui) — 100k+ members, workflow sharing, troubleshooting
+- [ComfyUI Workflows on Reddit](https://www.reddit.com/r/comfyui/) — daily shared workflows
+- [CivitAI](https://civitai.com) — models, LoRAs, and workflow downloads
+- [ComfyUI Registry](https://registry.comfy.org) — official workflow and node registry
+- [OpenArt](https://openart.ai) — community workflows with parameter previews
+- [ComfyUI Examples](https://comfyanonymous.github.io/ComfyUI_examples/) — official example gallery
 
 ## Links
 
