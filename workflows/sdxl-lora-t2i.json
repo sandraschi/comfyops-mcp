@@ -1,0 +1,80 @@
+{
+  "_meta": {
+    "name": "SDXL LoRA Text-to-Image",
+    "description": "SDXL with LoRA support. Access the full LoRA ecosystem, ~5.5 GB VRAM.",
+    "model_type": "image",
+    "params": {
+      "prompt": "Text description",
+      "seed": "Seed for reproducibility",
+      "size": "Image size (default 1024x1024)",
+      "lora": "LoRA model name (optional)"
+    }
+  },
+  "3": {
+    "class_type": "KSampler",
+    "inputs": {
+      "seed": 42,
+      "steps": 25,
+      "cfg": 7.5,
+      "sampler_name": "euler",
+      "scheduler": "normal",
+      "denoise": 1.0,
+      "model": ["10", 0],
+      "positive": ["12", 0],
+      "negative": ["12", 1],
+      "latent_image": ["11", 0]
+    }
+  },
+  "10": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "sd_xl_base_1.0.safetensors"
+    }
+  },
+  "11": {
+    "class_type": "EmptyLatentImage",
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
+    }
+  },
+  "12": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "a beautiful landscape",
+      "clip": ["10", 1]
+    }
+  },
+  "13": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "",
+      "clip": ["10", 1]
+    }
+  },
+  "8": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": ["3", 0],
+      "vae": ["10", 2]
+    }
+  },
+  "9": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "comfyops_sdxl",
+      "images": ["8", 0]
+    }
+  },
+  "14": {
+    "class_type": "LoraLoader",
+    "inputs": {
+      "lora_name": "",
+      "strength_model": 0.8,
+      "strength_clip": 0.8,
+      "model": ["10", 0],
+      "clip": ["10", 1]
+    }
+  }
+}

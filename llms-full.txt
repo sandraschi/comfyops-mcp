@@ -1,0 +1,69 @@
+# comfyops-mcp — Full Documentation
+
+## Overview
+
+comfyops-mcp wraps ComfyUI as a managed sidecar and exposes its generation
+capabilities as FastMCP portmanteau tools. No need to touch ComfyUI's node
+editor — pick a curated workflow, give a prompt, get a PNG/MP4.
+
+## Architecture
+
+```
+comfyops-mcp (FastMCP 3.2+)
+  ├── comfy_generate     — submit workflow JSON, poll result, return output
+  ├── comfy_workflows    — curated workflow depot
+  ├── comfy_models       — list installed checkpoints, check VRAM
+  ├── comfy_library      — SQLite generation history
+  ├── comfy_agentic_assist — SEP-1577 sampling workflow
+  └── ComfyUI sidecar    — managed child process on :11086
+```
+
+## Tools
+
+### comfy_generate
+Portmanteau with operations: image, video, upscale, inpaint, edit.
+Parameters: workflow_id, prompt, seed (optional), size (optional),
+negative_prompt (optional), image_input (base64, for i2v/inpaint).
+Returns: prompt_id, outputs (filenames), seed, message.
+
+### comfy_workflows
+Portmanteau with operations: list, get, validate, register.
+Workflows are curated JSON files in `workflows/*.json` with `_meta` metadata.
+
+### comfy_models
+Portmanteau with operations: list_installed, check_vram, health.
+list_installed scans MODELS_DIR for .safetensors/.ckpt/.pt/.pth files.
+check_vram queries nvidia-smi through ComfyUI's /system_stats.
+
+### comfy_library
+Portmanteau with operations: recent, search, record.
+Uses SQLite3 at data/library.sqlite3.
+
+### comfy_agentic_assist
+Takes a natural language goal, uses ctx.sample() to plan generation.
+
+## VRAM Management
+
+The 24 GB RTX 4090 is shared with Ollama and LM Studio. vram_guard checks
+free VRAM before queueing. Approximate requirements:
+- FLUX klein: ~6 GB
+- SDXL: ~5.5 GB
+- Wan 2.2: ~20 GB
+- ESRGAN: ~2 GB
+
+## Env Vars
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| COMFYOPS_COMFYUI_HOST | 127.0.0.1 | ComfyUI host |
+| COMFYOPS_COMFYUI_PORT | 11086 | ComfyUI port |
+| COMFYOPS_COMFYUI_DIR | D:\ComfyUI | ComfyUI installation dir |
+| COMFYOPS_MODELS_DIR | D:\models\comfyui | Model file location |
+| PORT | 11087 | Backend FastMCP port |
+
+## Prerequisites
+
+- Python 3.11+
+- uv (pip install uv)
+- Node.js 18+ (for webapp)
+- ComfyUI installed at COMFYOPS_COMFYUI_DIR (optional — server starts without it)

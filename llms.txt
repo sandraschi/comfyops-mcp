@@ -1,0 +1,28 @@
+# comfyops-mcp
+
+> Local generative AI engine — wraps ComfyUI for image/video/upscale/inpaint generation on RTX 4090.
+
+## Documentation
+- [README.md](./README.md)
+- [llms-full.txt](./llms-full.txt) — full tool documentation
+- [AGENTS.md](./AGENTS.md) — agent behavioral instructions
+
+## Quick Start
+```bash
+git clone https://github.com/sandraschi/comfyops-mcp
+cd comfyops-mcp
+uv sync
+.\start.ps1
+```
+
+## Key Tools
+- `comfy_generate` — image, video, upscale, inpaint, edit
+- `comfy_workflows` — list, get, validate, register curated ComfyUI workflows
+- `comfy_models` — list_installed, check_vram, health
+- `comfy_library` — recent, search, record generations
+- `comfy_agentic_assist` — SEP-1577 multi-step generation planning
+
+## Ports
+- 11086 ComfyUI sidecar
+- 11087 Backend (FastMCP HTTP)
+- 11088 Frontend (Vite dashboard)

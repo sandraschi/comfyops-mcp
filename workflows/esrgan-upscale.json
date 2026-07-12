@@ -1,0 +1,61 @@
+{
+  "_meta": {
+    "name": "ESRGAN Upscale",
+    "description": "Upscale images 2x-4x using ESRGAN. Lightweight, ~2 GB VRAM.",
+    "model_type": "upscale",
+    "params": {
+      "image": "Input image (base64 or path)",
+      "scale": "Upscale factor (2x, 3x, 4x)"
+    }
+  },
+  "3": {
+    "class_type": "KSampler",
+    "inputs": {
+      "seed": 42,
+      "steps": 1,
+      "cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "normal",
+      "denoise": 1.0,
+      "model": ["10", 0],
+      "positive": ["12", 0],
+      "negative": ["12", 1],
+      "latent_image": ["11", 0]
+    }
+  },
+  "10": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "esrgan_x4.safetensors"
+    }
+  },
+  "11": {
+    "class_type": "EmptyLatentImage",
+    "inputs": {
+      "width": 512,
+      "height": 512,
+      "batch_size": 1
+    }
+  },
+  "12": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "",
+      "clip": ["10", 1]
+    }
+  },
+  "8": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": ["3", 0],
+      "vae": ["10", 2]
+    }
+  },
+  "9": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "comfyops_upscale",
+      "images": ["8", 0]
+    }
+  }
+}

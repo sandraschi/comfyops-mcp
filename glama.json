@@ -1,0 +1,13 @@
+{
+  "name": "comfyops-mcp",
+  "description": "Local generative AI engine — ComfyUI wrapping for image/video/upscale/inpaint generation",
+  "version": "0.1.0",
+  "categories": ["generative-ai", "image-generation", "video-generation"],
+  "repository": "https://github.com/sandraschi/comfyops-mcp",
+  "homepage": "https://github.com/sandraschi/comfyops-mcp#readme",
+  "icon": "https://raw.githubusercontent.com/sandraschi/comfyops-mcp/main/docs/icon.png",
+  "tags": ["comfyui", "stable-diffusion", "flux", "wan", "upscale", "inpaint"],
+  "author": "sandraschi",
+  "entrypoint": "comfyops_mcp.server",
+  "transport": ["stdio", "http"]
+}

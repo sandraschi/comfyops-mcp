@@ -1,0 +1,62 @@
+{
+  "_meta": {
+    "name": "Wan 2.2 Text-to-Video",
+    "description": "Text-to-video generation using Wan 2.2. High quality, Apache 2.0 licensed, ~20 GB VRAM.",
+    "model_type": "video",
+    "params": {
+      "prompt": "Text description of the video",
+      "seed": "Random seed for reproducibility",
+      "size": "Video size as WxH"
+    }
+  },
+  "3": {
+    "class_type": "KSampler",
+    "inputs": {
+      "seed": 42,
+      "steps": 30,
+      "cfg": 4.5,
+      "sampler_name": "euler",
+      "scheduler": "normal",
+      "denoise": 1.0,
+      "model": ["10", 0],
+      "positive": ["12", 0],
+      "negative": ["12", 1],
+      "latent_image": ["11", 0]
+    }
+  },
+  "10": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "wan2.2-i2v.safetensors"
+    }
+  },
+  "11": {
+    "class_type": "EmptyLatentImage",
+    "inputs": {
+      "width": 640,
+      "height": 480,
+      "batch_size": 1
+    }
+  },
+  "12": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "a cinematic video of waves crashing",
+      "clip": ["10", 1]
+    }
+  },
+  "8": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": ["3", 0],
+      "vae": ["10", 2]
+    }
+  },
+  "9": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "comfyops_wan",
+      "images": ["8", 0]
+    }
+  }
+}
