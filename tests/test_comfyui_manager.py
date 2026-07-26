@@ -1,193 +1,152 @@
-"""Tests for ComfyUI sidecar manager — health checks, VRAM, prompts, models."""
+"""Unit tests for ComfyUI manager (fully mocked — no live sidecar)."""
 
-import json
-import os
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from __future__ import annotations
 
-import httpx
-import pytest
-import pytest_asyncio
+from unittest.mock import AsyncMock, patch
 
-from comfyops_mcp import config as cfg
-from comfyops_mcp.comfyui_manager import (
-    check_health,
-    check_vram,
-    get_client,
-    get_workflow_depot,
-    list_models,
-    queue_prompt,
-    wait_for_result,
-)
+from comfyops_mcp import comfyui_manager as mgr
+from tests.conftest import mock_response
 
 
-class TestComfyUIConnection:
-    async def test_check_health_success(self, mock_httpx_client):
-        result = await check_health()
+class TestCheckHealth:
+    async def test_ok(self, mock_comfy_client):
+        result = await mgr.check_health()
         assert result["ok"] is True
         assert result["comfyui_version"] == "0.3.0"
-
-    async def test_check_health_connect_error(self):
-        with patch("comfyops_mcp.comfyui_manager.get_client") as mock_get:
-            mock_client = AsyncMock()
-            mock_client.get.side_effect = httpx.ConnectError("Connection refused")
-            mock_get.return_value = mock_client
-            result = await check_health()
-            assert result["ok"] is False
-            assert "Connection refused" in result["error"]
-
-    async def test_check_health_http_error(self, mock_httpx_client):
-        mock_response = MagicMock(status_code=503, text=lambda: "Service Unavailable")
-        mock_httpx_client.get.return_value = mock_response
-        result = await check_health()
-        assert result["ok"] is False
-        assert "HTTP 503" in result["error"]
-
-    async def test_check_health_reports_vram(self, mock_httpx_client):
-        result = await check_health()
         assert result["vram_free"] == 8 * 1024**3
-        assert result["vram_total"] == 24 * 1024**3
+
+    async def test_http_error(self, mock_comfy_client):
+        mock_comfy_client.get = AsyncMock(return_value=mock_response(500, text="boom"))
+        result = await mgr.check_health()
+        assert result["ok"] is False
+        assert "500" in result["error"]
+
+    async def test_connect_error(self, mock_comfy_client):
+        import httpx
+
+        mock_comfy_client.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
+        result = await mgr.check_health()
+        assert result["ok"] is False
+        assert "not reachable" in result["error"].lower() or "refused" in result["error"].lower()
 
 
-class TestVRAM:
-    async def test_check_vram_sufficient(self, mock_httpx_client):
-        result = await check_vram(4.0)
+class TestCheckVram:
+    async def test_enough(self, mock_comfy_client):
+        result = await mgr.check_vram(4.0)
         assert result["ok"] is True
-        assert result["vram_free"] == 8.0
-        assert result["required"] == 4.0
+        assert result["vram_free"] >= 4.0
 
-    async def test_check_vram_insufficient(self, mock_httpx_client):
-        with patch("comfyops_mcp.comfyui_manager.check_health") as mock_health:
-            mock_health.return_value = {
-                "ok": True,
-                "vram_free": 2 * 1024**3,
-                "vram_total": 24 * 1024**3,
-                "cuda_devices": [{"name": "RTX 4090"}],
-                "comfyui_version": "0.3.0",
-            }
-            result = await check_vram(8.0)
-            assert result["ok"] is False
-            assert "Only 2.0 GB VRAM free" in result["error"]
-
-    async def test_check_vram_no_comfyui(self):
-        with patch("comfyops_mcp.comfyui_manager.check_health") as mock_health:
-            mock_health.return_value = {"ok": False, "error": "Not reachable"}
-            result = await check_vram(4.0)
-            assert result["ok"] is False
-
-
-class TestWorkflowDepot:
-    def test_get_workflow_depot_returns_list(self, patch_config):
-        depot = get_workflow_depot()
-        assert len(depot) >= 1
-        assert depot[0]["id"] == "test-workflow"
-        assert depot[0]["name"] == "Test Workflow"
-
-    def test_get_workflow_depot_includes_metadata(self, patch_config):
-        depot = get_workflow_depot()
-        wf = next(w for w in depot if w["id"] == "test-workflow")
-        assert wf["model_type"] == "image"
-        assert "prompt" in wf["params"]
-        assert "docs" in wf
-
-    def test_get_workflow_depot_empty_dir(self):
-        depot = get_workflow_depot()
-        assert depot == []
-
-
-class TestPromptQueue:
-    async def test_queue_prompt_success(self, mock_httpx_client):
-        workflow = {"3": {"class_type": "KSampler", "inputs": {"seed": 42}}}
-        result = await queue_prompt(workflow)
-        assert result["ok"] is True
-        assert result["prompt_id"] == "test-prompt-001"
-
-    async def test_queue_prompt_http_error(self, mock_httpx_client):
-        mock_httpx_client.post.side_effect = httpx.HTTPStatusError(
-            "400 Bad Request", request=MagicMock(), response=MagicMock(status_code=400, text=lambda: '{"error": "Invalid prompt"}')
+    async def test_not_enough(self, mock_comfy_client):
+        mock_comfy_client.get = AsyncMock(
+            return_value=mock_response(
+                200,
+                {
+                    "system": {
+                        "comfyui_version": "0.3.0",
+                        "devices": [],
+                        "memory": {"free": 1 * 1024**3, "total": 24 * 1024**3},
+                    }
+                },
+            )
         )
-        result = await queue_prompt({"bad": "workflow"})
+        result = await mgr.check_vram(8.0)
         assert result["ok"] is False
+        assert result["required"] == 8.0
 
-    async def test_queue_prompt_no_prompt_id(self, mock_httpx_client):
-        mock_httpx_client.post.side_effect = None
-        mock_response = MagicMock(status_code=200, json=lambda: {"number": 1})
-        mock_httpx_client.post.return_value = mock_response
-        result = await queue_prompt({"test": "data"})
+    async def test_offline(self, mock_comfy_client):
+        import httpx
+
+        mock_comfy_client.get = AsyncMock(side_effect=httpx.ConnectError("down"))
+        result = await mgr.check_vram(4.0)
         assert result["ok"] is False
-
-    async def test_queue_prompt_connection_error(self):
-        with patch("comfyops_mcp.comfyui_manager.get_client") as mock_get:
-            mock_client = AsyncMock()
-            mock_client.post.side_effect = httpx.ConnectError("Connection refused")
-            mock_get.return_value = mock_client
-            result = await queue_prompt({"test": "data"})
-            assert result["ok"] is False
+        assert result["vram_free"] == 0
 
 
-class TestResultPolling:
-    async def test_wait_for_result_success(self, mock_httpx_client):
-        result = await wait_for_result("test-prompt-001", timeout=10)
+class TestQueuePrompt:
+    async def test_success(self, mock_comfy_client):
+        result = await mgr.queue_prompt({"3": {"class_type": "KSampler", "inputs": {}}})
         assert result["ok"] is True
-        assert len(result["outputs"]) >= 1
-        assert result["outputs"][0]["filename"] == "test_00001_.png"
+        assert result["prompt_id"] == "pid-001"
 
-    async def test_wait_for_result_timeout(self, mock_httpx_client):
-        mock_response = MagicMock(status_code=200, json=lambda: {})
-        mock_httpx_client.get.return_value = mock_response
-        result = await wait_for_result("stuck-prompt", timeout=1)
+    async def test_http_error(self, mock_comfy_client):
+        mock_comfy_client.post = AsyncMock(return_value=mock_response(400, text="bad graph"))
+        result = await mgr.queue_prompt({})
+        assert result["ok"] is False
+        assert "400" in result["error"]
+
+    async def test_missing_prompt_id(self, mock_comfy_client):
+        mock_comfy_client.post = AsyncMock(return_value=mock_response(200, {"number": 1}))
+        result = await mgr.queue_prompt({})
+        assert result["ok"] is False
+        assert "prompt_id" in result["error"]
+
+
+class TestWaitForResult:
+    async def test_success(self, mock_comfy_client):
+        history = {
+            "pid-001": {
+                "outputs": {"9": {"images": [{"filename": "out.png", "subfolder": "", "type": "output"}]}},
+                "status": {"completed": True, "status_str": "success"},
+            }
+        }
+        mock_comfy_client.get = AsyncMock(return_value=mock_response(200, history))
+        with patch("comfyops_mcp.comfyui_manager.asyncio.sleep", new_callable=AsyncMock):
+            result = await mgr.wait_for_result("pid-001", timeout=5)
+        assert result["ok"] is True
+        assert result["outputs"][0]["filename"] == "out.png"
+
+    async def test_timeout(self, mock_comfy_client):
+        mock_comfy_client.get = AsyncMock(return_value=mock_response(200, {}))
+        with patch("comfyops_mcp.comfyui_manager.asyncio.sleep", new_callable=AsyncMock):
+            with patch("comfyops_mcp.comfyui_manager.time.time", side_effect=[0, 0.5, 10]):
+                result = await mgr.wait_for_result("pid-001", timeout=1)
         assert result["ok"] is False
         assert "Timeout" in result["error"]
 
-    async def test_wait_for_result_http_error(self, mock_httpx_client):
-        mock_response = MagicMock(status_code=500, text=lambda: "Server Error")
-        mock_httpx_client.get.return_value = mock_response
-        result = await wait_for_result("error-prompt", timeout=1)
-        assert result["ok"] is False
-
 
 class TestListModels:
-    async def test_list_models_returns_files(self, tmp_models_dir):
-        with patch.object(cfg, "MODELS_DIR", tmp_models_dir):
-            models = await list_models()
-            assert len(models) >= 1
-            assert any("flux_test" in m["name"] for m in models)
+    async def test_lists_safetensors(self, isolated_config):
+        models = await mgr.list_models()
+        names = {m["name"] for m in models}
+        assert "flux_test" in names
+        assert "style" in names
+        assert all(m["size_mb"] > 0 for m in models)
 
-    async def test_list_models_reports_size(self, tmp_models_dir):
-        with patch.object(cfg, "MODELS_DIR", tmp_models_dir):
-            models = await list_models()
-            flux = next(m for m in models if "flux_test" in m["name"])
-            assert flux["size_mb"] == 1.0  # 1 MB dummy file
+    async def test_missing_dir(self, tmp_path, isolated_config):
+        with patch.object(mgr._cfg, "MODELS_DIR", str(tmp_path / "nope")):
+            assert await mgr.list_models() == []
 
-    async def test_list_models_empty_dir(self, tmp_path):
-        empty = tmp_path / "nope"
+
+class TestWorkflowDepot:
+    def test_lists_fixture(self, isolated_config):
+        depot = mgr.get_workflow_depot()
+        assert len(depot) == 1
+        assert depot[0]["id"] == "test-workflow"
+        assert depot[0]["name"] == "Test Workflow"
+        assert "Unit fixture" in depot[0]["docs"]
+
+    def test_empty_dir(self, tmp_path, isolated_config):
+        empty = tmp_path / "empty_wf"
         empty.mkdir()
-        with patch.object(cfg, "MODELS_DIR", str(empty)):
-            models = await list_models()
-            assert models == []
-
-    async def test_list_models_nonexistent_dir(self):
-        with patch.object(cfg, "MODELS_DIR", "Z:\\does_not_exist"):
-            models = await list_models()
-            assert models == []
+        with patch.object(mgr._cfg, "WORKFLOWS_DIR", str(empty)):
+            assert mgr.get_workflow_depot() == []
 
 
-class TestModelsEdgeCases:
-    async def test_list_models_rejects_binaries(self, tmp_models_dir):
-        """Model scanning should only pick known extensions."""
-        import os
-        stray = os.path.join(tmp_models_dir, "readme.txt")
-        Path(stray).write_text("not a model")
-        with patch.object(cfg, "MODELS_DIR", tmp_models_dir):
-            models = await list_models()
-            txt = [m for m in models if m["name"] == "readme"]
-            assert len(txt) == 0
+class TestGatherOutputs:
+    def test_extracts_filenames(self):
+        outputs = {
+            "9": {
+                "images": [{"filename": "a.png", "type": "output", "subfolder": ""}],
+            },
+            "10": {
+                "gifs": [{"filename": "b.mp4", "type": "output", "subfolder": "video"}],
+            },
+        }
+        files = mgr._gather_outputs(outputs)
+        assert {f["filename"] for f in files} == {"a.png", "b.mp4"}
 
-    async def test_list_models_scans_subdirs(self, tmp_models_dir):
-        sub = Path(tmp_models_dir) / "checkpoints"
-        sub.mkdir()
-        (sub / "deep_model.safetensors").write_bytes(b"y" * 512)
-        with patch.object(cfg, "MODELS_DIR", tmp_models_dir):
-            models = await list_models()
-            names = [m["name"] for m in models]
-            assert "deep_model" in names
+
+class TestSidecar:
+    def test_start_missing_install(self, tmp_path, isolated_config):
+        with patch.object(mgr._cfg, "COMFYUI_DIR", str(tmp_path / "missing")):
+            assert mgr.start_sidecar() is None

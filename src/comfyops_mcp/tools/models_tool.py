@@ -1,7 +1,7 @@
 """comfy_models portmanteau — list_installed, check_vram, health."""
 
 import logging
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Literal
 
 from fastmcp import FastMCP
 
@@ -15,7 +15,7 @@ def register_tools(mcp: FastMCP):
     async def comfy_models(
         operation: Annotated[Literal["list_installed", "check_vram", "health"],
                              "Operation to perform."],
-        model_vram_gb: Annotated[Optional[float],
+        model_vram_gb: Annotated[float | None,
                                  "Estimated VRAM for check_vram."] = None,
     ) -> dict:
         """Manage local models and check GPU VRAM status.
@@ -39,10 +39,10 @@ def register_tools(mcp: FastMCP):
             req = model_vram_gb if model_vram_gb else 4.0
             result = await check_vram(req)
             if not result["ok"]:
-                return {"success": False, "error": result["error"],
+                return {"success": False, "error": result.get("error", "VRAM check failed"),
                         "error_type": "vram",
-                        "vram_free": result["vram_free"],
-                        "required": result["required"]}
+                        "vram_free": result.get("vram_free", 0),
+                        "required": result.get("required", req)}
             return {"success": True, "vram_free": result["vram_free"],
                     "required": result["required"],
                     "message": f"{result['vram_free']} GB VRAM free (need ~{result['required']} GB)."}

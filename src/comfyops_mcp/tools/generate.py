@@ -2,17 +2,18 @@
 
 import json
 import logging
+import random
 from pathlib import Path
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Literal
 
-from fastmcp import FastMCP, Context
+from fastmcp import Context, FastMCP
 
+from comfyops_mcp import config as _cfg
 from comfyops_mcp.comfyui_manager import (
     check_vram,
     queue_prompt,
     wait_for_result,
 )
-from comfyops_mcp.config import GENERATION_TIMEOUT, WORKFLOWS_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -31,13 +32,13 @@ def register_tools(mcp: FastMCP):
                              "Generation type."],
         workflow_id: Annotated[str, "Workflow ID from comfy_workflows/list."],
         prompt: Annotated[str, "Text prompt for generation."],
-        seed: Annotated[Optional[int],
+        seed: Annotated[int | None,
                         "Random seed for reproducibility. Omit for random."] = None,
-        size: Annotated[Optional[str],
+        size: Annotated[str | None,
                         "Image size as WxH (e.g. '1024x1024')."] = None,
-        negative_prompt: Annotated[Optional[str],
+        negative_prompt: Annotated[str | None,
                                    "Negative prompt."] = None,
-        image_input: Annotated[Optional[str],
+        image_input: Annotated[str | None,
                                "Base64 image for i2v/inpaint/edit."] = None,
         ctx: Context = None,
     ) -> dict:
@@ -66,14 +67,14 @@ def register_tools(mcp: FastMCP):
                     "suggestions": ["Close other GPU apps (LM Studio, Ollama).",
                                     "Try a smaller model workflow."]}
 
-        wf_path = Path(WORKFLOWS_DIR) / f"{workflow_id}.json"
+        wf_path = Path(_cfg.WORKFLOWS_DIR) / f"{workflow_id}.json"
         if not wf_path.exists():
             return {"success": False,
                     "error": f"Workflow '{workflow_id}' not found.",
                     "suggestions": ["Use comfy_workflows/list to see available workflows."]}
 
         workflow = json.loads(wf_path.read_text(encoding="utf-8"))
-        seed_val = seed if seed is not None else 42
+        seed_val = seed if seed is not None else random.randint(0, 2**32 - 1)
         workflow = _apply_params(workflow, prompt, seed_val, size, negative_prompt, image_input)
 
         result = await queue_prompt(workflow)
@@ -81,7 +82,7 @@ def register_tools(mcp: FastMCP):
             return {"success": False, "error": result["error"], "error_type": "comfyui"}
 
         prompt_id = result["prompt_id"]
-        generation = await wait_for_result(prompt_id, GENERATION_TIMEOUT)
+        generation = await wait_for_result(prompt_id, _cfg.GENERATION_TIMEOUT)
 
         if not generation["ok"]:
             return {"success": False, "error": generation["error"],
@@ -98,14 +99,19 @@ def register_tools(mcp: FastMCP):
 
 def _apply_params(workflow, prompt, seed, size, negative_prompt, image_input):
     wf = json.loads(json.dumps(workflow))
+    clip_encountered = 0
     for node_id, node in wf.items():
         if node_id.startswith("_"):
             continue
         cls = node.get("class_type", "")
         inputs = node.get("inputs", {})
         if cls == "CLIPTextEncode":
-            if "text" in inputs and inputs.get("text", "").strip():
-                inputs["text"] = prompt
+            if "text" in inputs:
+                clip_encountered += 1
+                if clip_encountered == 1:
+                    inputs["text"] = prompt
+                elif negative_prompt:
+                    inputs["text"] = negative_prompt
         elif cls in ("KSampler", "SamplerCustom"):
             if "seed" in inputs:
                 inputs["seed"] = seed

@@ -3,36 +3,25 @@
 import asyncio
 import json
 import logging
-import os
 import subprocess
+import sys
 import time
-import uuid
 from pathlib import Path
-from typing import Optional
 
 import httpx
 
-from comfyops_mcp.config import (
-    COMFYUI_API_URL,
-    COMFYUI_DIR,
-    COMFYUI_HOST,
-    COMFYUI_PORT,
-    COMFYUI_URL,
-    GENERATION_TIMEOUT,
-    MODELS_DIR,
-    WORKFLOWS_DIR,
-)
+from comfyops_mcp import config as _cfg
 
 logger = logging.getLogger(__name__)
 
-_client: Optional[httpx.AsyncClient] = None
-_comfyui_proc: Optional[subprocess.Popen] = None
+_client: httpx.AsyncClient | None = None
+_comfyui_proc: subprocess.Popen | None = None
 
 
 def get_client() -> httpx.AsyncClient:
     global _client
     if _client is None:
-        _client = httpx.AsyncClient(base_url=COMFYUI_URL, timeout=30)
+        _client = httpx.AsyncClient(base_url=_cfg.COMFYUI_URL, timeout=30)
     return _client
 
 
@@ -52,7 +41,7 @@ async def check_health() -> dict:
             "vram_total": stats.get("system", {}).get("memory", {}).get("total", 0),
         }
     except httpx.ConnectError as e:
-        return {"ok": False, "error": f"ComfyUI not reachable at {COMFYUI_URL}: {e}"}
+        return {"ok": False, "error": f"ComfyUI not reachable at {_cfg.COMFYUI_URL}: {e}"}
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
@@ -87,7 +76,14 @@ async def queue_prompt(workflow_json: dict) -> dict:
     """
     client = get_client()
     payload = {"prompt": workflow_json}
-    r = await client.post("/prompt", json=payload, timeout=30)
+    try:
+        r = await client.post("/prompt", json=payload, timeout=30)
+    except httpx.HTTPStatusError as e:
+        return {"ok": False, "error": f"ComfyUI prompt HTTP error: {e.response.status_code} {e.response.text[:200]}"}
+    except httpx.ConnectError as e:
+        return {"ok": False, "error": f"ComfyUI unreachable: {e}"}
+    except Exception as e:
+        return {"ok": False, "error": f"ComfyUI prompt error: {e}"}
     if r.status_code != 200:
         err = r.text
         try:
@@ -102,14 +98,15 @@ async def queue_prompt(workflow_json: dict) -> dict:
     return {"ok": True, "prompt_id": prompt_id}
 
 
-async def wait_for_result(prompt_id: str, timeout: int = GENERATION_TIMEOUT) -> dict:
+async def wait_for_result(prompt_id: str, timeout: int | None = None) -> dict:
     """Poll /history/{prompt_id} until the generation completes or errors.
 
     Returns output image/video filenames and the node execution tree.
     """
     client = get_client()
+    actual_timeout = timeout if timeout is not None else _cfg.GENERATION_TIMEOUT
     start = time.time()
-    while time.time() - start < timeout:
+    while time.time() - start < actual_timeout:
         await asyncio.sleep(1)
         r = await client.get(f"/history/{prompt_id}", timeout=10)
         if r.status_code == 200:
@@ -122,14 +119,14 @@ async def wait_for_result(prompt_id: str, timeout: int = GENERATION_TIMEOUT) -> 
                     return {"ok": True, "outputs": _gather_outputs(outputs), "prompt_id": prompt_id}
                 error = status.get("messages", [])
                 return {"ok": False, "error": f"Generation failed: {error}", "prompt_id": prompt_id}
-    return {"ok": False, "error": f"Timeout after {timeout}s", "prompt_id": prompt_id}
+    return {"ok": False, "error": f"Timeout after {actual_timeout}s", "prompt_id": prompt_id}
 
 
 def _gather_outputs(outputs: dict) -> list:
     """Extract image/video filenames from ComfyUI node outputs."""
     files = []
-    for node_id, node_output in outputs.items():
-        for key, data in node_output.items():
+    for _node_id, node_output in outputs.items():
+        for _key, data in node_output.items():
             if isinstance(data, list):
                 for item in data:
                     if isinstance(item, dict):
@@ -142,7 +139,7 @@ def _gather_outputs(outputs: dict) -> list:
 
 async def list_models() -> list:
     """Scan the models directory for available checkpoint/LoRA/VAE files."""
-    models_dir = Path(MODELS_DIR)
+    models_dir = Path(_cfg.MODELS_DIR)
     if not models_dir.exists():
         return []
     result = []
@@ -156,13 +153,17 @@ async def list_models() -> list:
 
 def get_workflow_depot() -> list:
     """List curated workflow JSONs from the workflows directory."""
-    wf_dir = Path(WORKFLOWS_DIR)
+    wf_dir = Path(_cfg.WORKFLOWS_DIR)
     if not wf_dir.exists():
         return []
     workflows = []
     for f in sorted(wf_dir.glob("*.json")):
         wf_id = f.stem
-        workflow = json.loads(f.read_text(encoding="utf-8"))
+        try:
+            workflow = json.loads(f.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            logger.warning("Skipping corrupt workflow %s: %s", f.name, e)
+            continue
         meta = workflow.get("_meta", {})
         sidecar = f.with_suffix(".md")
         docs = sidecar.read_text(encoding="utf-8") if sidecar.exists() else ""
@@ -177,13 +178,13 @@ def get_workflow_depot() -> list:
     return workflows
 
 
-def start_sidecar() -> Optional[subprocess.Popen]:
+def start_sidecar() -> subprocess.Popen | None:
     """Launch ComfyUI as a managed subprocess.
 
     Returns the Popen handle, or None if comfyui main.py isn't found.
     """
     global _comfyui_proc
-    comfyui_main = Path(COMFYUI_DIR) / "main.py"
+    comfyui_main = Path(_cfg.COMFYUI_DIR) / "main.py"
     if not comfyui_main.exists():
         logger.warning("ComfyUI not found at %s", comfyui_main)
         return None
@@ -191,14 +192,14 @@ def start_sidecar() -> Optional[subprocess.Popen]:
         logger.info("ComfyUI already running")
         return _comfyui_proc
     proc = subprocess.Popen(
-        [sys.executable, "-m", "main", "--listen", COMFYUI_HOST, "--port", str(COMFYUI_PORT)],
-        cwd=COMFYUI_DIR,
+        [sys.executable, "-m", "main", "--listen", _cfg.COMFYUI_HOST, "--port", str(_cfg.COMFYUI_PORT)],
+        cwd=_cfg.COMFYUI_DIR,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0,
     )
     _comfyui_proc = proc
-    logger.info("Started ComfyUI (PID %d) on %s:%s", proc.pid, COMFYUI_HOST, COMFYUI_PORT)
+    logger.info("Started ComfyUI (PID %d) on %s:%s", proc.pid, _cfg.COMFYUI_HOST, _cfg.COMFYUI_PORT)
     return proc
 
 

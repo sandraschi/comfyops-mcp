@@ -3,12 +3,12 @@
 import json
 import logging
 from pathlib import Path
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Literal
 
 from fastmcp import FastMCP
 
+from comfyops_mcp import config as _cfg
 from comfyops_mcp.comfyui_manager import get_workflow_depot
-from comfyops_mcp.config import WORKFLOWS_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -28,13 +28,13 @@ def register_tools(mcp: FastMCP):
     async def comfy_workflows(
         operation: Annotated[Literal["list", "get", "validate", "register", "search", "discover"],
                              "Operation to perform."],
-        workflow_id: Annotated[Optional[str], "Workflow ID for get/validate/register."] = None,
-        workflow_json: Annotated[Optional[str], "JSON string for register."] = None,
-        name: Annotated[Optional[str], "Display name for register."] = None,
-        description: Annotated[Optional[str], "Description for register."] = None,
-        query: Annotated[Optional[str], "Search text for search operation."] = None,
-        tags: Annotated[Optional[str], "Comma-separated tags for search/register."] = None,
-        source_url: Annotated[Optional[str], "Original source URL for register."] = None,
+        workflow_id: Annotated[str | None, "Workflow ID for get/validate/register."] = None,
+        workflow_json: Annotated[str | None, "JSON string for register."] = None,
+        name: Annotated[str | None, "Display name for register."] = None,
+        description: Annotated[str | None, "Description for register."] = None,
+        query: Annotated[str | None, "Search text for search operation."] = None,
+        tags: Annotated[str | None, "Comma-separated tags for search/register."] = None,
+        source_url: Annotated[str | None, "Original source URL for register."] = None,
     ) -> dict:
         """Manage curated ComfyUI workflow definitions.
 
@@ -49,13 +49,18 @@ def register_tools(mcp: FastMCP):
                             workflow_json='{"3":{"class_type":"KSampler",...}}',
                             tags="t2i,portrait", source_url="https://civitai.com/...")
         """
-        depot = get_workflow_depot()
+        if operation == "discover":
+            return {"success": True, "sources": _COMMUNITY_SOURCES,
+                    "message": f"{len(_COMMUNITY_SOURCES)} community sources for finding workflows. "
+                               "Use comfy_workflows/register to add any you find."}
 
         if operation == "list":
+            depot = get_workflow_depot()
             return {"success": True, "workflows": depot,
                     "message": f"{len(depot)} workflows in local depot."}
 
         if operation == "search":
+            depot = get_workflow_depot()
             query_lower = (query or "").lower()
             tag_list = [t.strip().lower() for t in (tags or "").split(",") if t.strip()]
             results = []
@@ -64,23 +69,20 @@ def register_tools(mcp: FastMCP):
                 desc_match = query_lower in wf["description"].lower()
                 id_match = query_lower in wf["id"].lower()
                 wf_tags = [t.strip().lower() for t in wf.get("params", {}).get("tags", "").split(",")]
+                if not query_lower:
+                    name_match = desc_match = id_match = True
                 tag_match = any(t in wf_tags for t in tag_list) if tag_list else True
                 if (name_match or desc_match or id_match) and tag_match:
                     results.append(wf)
             return {"success": True, "workflows": results,
                     "message": f"Found {len(results)} workflows matching '{query or tags}'."}
 
-        if operation == "discover":
-            return {"success": True, "sources": _COMMUNITY_SOURCES,
-                    "message": f"{len(_COMMUNITY_SOURCES)} community sources for finding workflows. "
-                               "Use comfy_workflows/register to add any you find."}
-
         if operation == "get":
             if not workflow_id:
                 return {"success": False, "error": "workflow_id required."}
-            wf_path = Path(WORKFLOWS_DIR) / f"{workflow_id}.json"
+            wf_path = Path(_cfg.WORKFLOWS_DIR) / f"{workflow_id}.json"
             if not wf_path.exists():
-                available = [w["id"] for w in depot]
+                available = [w["id"] for w in get_workflow_depot()]
                 return {"success": False,
                         "error": f"Workflow '{workflow_id}' not found in local depot.",
                         "suggestions": [
@@ -105,7 +107,7 @@ def register_tools(mcp: FastMCP):
         if operation == "validate":
             if not workflow_id:
                 return {"success": False, "error": "workflow_id required."}
-            wf_path = Path(WORKFLOWS_DIR) / f"{workflow_id}.json"
+            wf_path = Path(_cfg.WORKFLOWS_DIR) / f"{workflow_id}.json"
             if not wf_path.exists():
                 return {"success": False, "error": f"Workflow '{workflow_id}' not found."}
             try:
@@ -132,7 +134,7 @@ def register_tools(mcp: FastMCP):
                 meta["tags"] = tags
             if source_url:
                 meta["source_url"] = source_url
-            wf_path = Path(WORKFLOWS_DIR) / f"{workflow_id}.json"
+            wf_path = Path(_cfg.WORKFLOWS_DIR) / f"{workflow_id}.json"
             wf_path.parent.mkdir(parents=True, exist_ok=True)
             wf_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
             return {"success": True, "message": f"Registered workflow '{workflow_id}' in local depot.",
