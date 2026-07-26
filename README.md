@@ -2,10 +2,10 @@
 
 Wraps ComfyUI so you can generate images, video, and upscales from a prompt — without ever touching the node editor. Pick a curated workflow, type what you want, get a PNG or MP4.
 
-**FastMCP 3.2** | 5 portmanteau tools | 6 curated workflows | ComfyUI :11086 | Backend :11087 | Dashboard :11088
+**FastMCP 3.4+** | 5 portmanteau tools | 6 curated workflows | ComfyUI :11086 | Backend :11087 | Dashboard :11088
 
 <p align="center">
-  <img src="https://img.shields.io/badge/FastMCP-3.2-7c5cfc?style=flat-square" alt="FastMCP">
+  <img src="https://img.shields.io/badge/FastMCP-3.4+-7c5cfc?style=flat-square" alt="FastMCP">
   <img src="https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="MIT">
   <img src="https://img.shields.io/badge/status-MVP-orange?style=flat-square" alt="Status">
@@ -59,7 +59,9 @@ uv sync
 .\start.ps1
 ```
 
-See [INSTALL.md](INSTALL.md) for prerequisites and Claude Desktop config.
+See [docs/ONBOARDING.md](docs/ONBOARDING.md) for first-run (ComfyUI + models), and [INSTALL.md](INSTALL.md) for Claude Desktop config.
+
+**Models from Civitai:** use [civitai-mcp](../civitai-mcp) to search/download into the ComfyUI models tree; this repo generates.
 
 ## Features
 
@@ -107,9 +109,11 @@ comfyops ships with 6 curated workflows, but the community has thousands. Use `c
 
 ## Links
 
+- [Onboarding](docs/ONBOARDING.md) — ComfyUI, ports, civitai handoff
 - [Installation Guide](INSTALL.md)
 - [Configuration](docs/CONFIGURATION.md) — env vars reference
 - [Tool Reference](docs/TOOLS.md) — full parameter docs
 - [Development](docs/DEVELOPMENT.md) — setup, testing, contributing
 - [Troubleshooting](docs/TROUBLESHOOTING.md) — common issues
 - [CHANGELOG](CHANGELOG.md)
+- Fleet start: `mcp-central-docs/starts/comfyops-mcp-start.bat`

@@ -6,11 +6,21 @@ import {
   Workflow,
   Cpu,
   Compass,
+  HelpCircle,
+  Settings,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
 
-export type Page = "dashboard" | "generate" | "gallery" | "workflows" | "models" | "discover";
+export type Page =
+  | "dashboard"
+  | "generate"
+  | "gallery"
+  | "workflows"
+  | "models"
+  | "discover"
+  | "help"
+  | "settings";
 
 interface NavItem {
   id: Page;
@@ -25,6 +35,8 @@ const navItems: NavItem[] = [
   { id: "workflows", label: "Workflows", icon: Workflow },
   { id: "discover", label: "Discover", icon: Compass },
   { id: "models", label: "Models", icon: Cpu },
+  { id: "settings", label: "Settings", icon: Settings },
+  { id: "help", label: "Help", icon: HelpCircle },
 ];
 
 interface SidebarProps {

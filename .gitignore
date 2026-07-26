@@ -7,4 +7,10 @@ dist/
 *.egg-info/
 .webhuddle/
 web_sota/dist/
-.webhuddle/
+data/*.sqlite3
+*.db
+*.mcpb
+.bak
+.bak.*
+.mcpb/
+mcpb/src/

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ExternalLink, Compass, Globe, BookOpen, Users } from "lucide-react";
 import { listWorkflows } from "@/lib/api";
 
@@ -16,14 +16,7 @@ const SOURCE_COLORS: Record<string, string> = {
   registry: "text-purple-400 border-purple-500/30 bg-purple-500/10",
 };
 
-interface CommunitySource {
-  name: string;
-  url: string;
-  type: string;
-}
-
 export default function Discover({ onNavigate }: { onNavigate: (p: string) => void }) {
-  const [sources, setSources] = useState<CommunitySource[]>([]);
   const [workflowCount, setWorkflowCount] = useState(0);
 
   useEffect(() => {
@@ -45,51 +38,44 @@ export default function Discover({ onNavigate }: { onNavigate: (p: string) => vo
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {sources.length === 0 ? (
-          /* Static fallback if API not reachable */
-          <>
-            <SourceCard
-              name="ComfyUI Examples"
-              url="https://comfyanonymous.github.io/ComfyUI_examples/"
-              type="official"
-              description="Official example gallery — basic to advanced workflows with screenshots"
-            />
-            <SourceCard
-              name="CivitAI"
-              url="https://civitai.com"
-              type="marketplace"
-              description="Model and workflow marketplace with parameter previews and community ratings"
-            />
-            <SourceCard
-              name="OpenArt"
-              url="https://openart.ai/workflows"
-              type="community"
-              description="Curated community workflows with before/after comparisons"
-            />
-            <SourceCard
-              name="ComfyUI Registry"
-              url="https://registry.comfy.org"
-              type="registry"
-              description="Official node and workflow registry — discoverable, versioned"
-            />
-            <SourceCard
-              name="Reddit r/comfyui"
-              url="https://www.reddit.com/r/comfyui/"
-              type="community"
-              description="Daily shared workflows, troubleshooting, and tips from 100k+ members"
-            />
-            <SourceCard
-              name="ComfyUI Discord"
-              url="https://discord.gg/comfyui"
-              type="community"
-              description="Real-time help, workflow sharing, and announcements"
-            />
-          </>
-        ) : (
-          sources.map((s) => (
-            <SourceCard key={s.name} name={s.name} url={s.url} type={s.type} />
-          ))
-        )}
+        <>
+          <SourceCard
+            name="ComfyUI Examples"
+            url="https://comfyanonymous.github.io/ComfyUI_examples/"
+            type="official"
+            description="Official example gallery — basic to advanced workflows with screenshots"
+          />
+          <SourceCard
+            name="CivitAI"
+            url="https://civitai.com"
+            type="marketplace"
+            description="Model and workflow marketplace with parameter previews and community ratings"
+          />
+          <SourceCard
+            name="OpenArt"
+            url="https://openart.ai/workflows"
+            type="community"
+            description="Curated community workflows with before/after comparisons"
+          />
+          <SourceCard
+            name="ComfyUI Registry"
+            url="https://registry.comfy.org"
+            type="registry"
+            description="Official node and workflow registry — discoverable, versioned"
+          />
+          <SourceCard
+            name="Reddit r/comfyui"
+            url="https://www.reddit.com/r/comfyui/"
+            type="community"
+            description="Daily shared workflows, troubleshooting, and tips from 100k+ members"
+          />
+          <SourceCard
+            name="ComfyUI Discord"
+            url="https://discord.gg/comfyui"
+            type="community"
+            description="Real-time help, workflow sharing, and announcements"
+          />
+        </>
       </div>
 
       <div className="mt-8 p-4 rounded-lg border border-zinc-800 bg-zinc-900/50">

@@ -1,7 +1,6 @@
 """Prefab UI cards for comfyops-mcp — rich in-chat displays."""
 
 from fastmcp import FastMCP
-from prefab_ui.components import Card, Badge, Metric, Row, Div
 
 from comfyops_mcp.comfyui_manager import check_health, get_workflow_depot
 
@@ -42,7 +41,7 @@ def register_prefab_cards(mcp: FastMCP):
 
     @mcp.tool(app=True)
     async def show_generation_card(
-        prompt: str, seed: int, workflow_id: str, outputs: list = None
+        prompt: str, seed: int, workflow_id: str, outputs: list | None = None
     ) -> dict:
         """Display a single generation result as a Prefab card.
 
@@ -56,7 +55,7 @@ def register_prefab_cards(mcp: FastMCP):
                 "type": "app",
                 "app": "PrefabApp",
                 "components": [
-                    {"type": "heading", "text": f"Generation", "level": 1},
+                    {"type": "heading", "text": "Generation", "level": 1},
                     {"type": "divider"},
                     {"type": "row", "label": "Prompt", "value": prompt[:200]},
                     {"type": "row", "label": "Seed", "value": str(seed)},

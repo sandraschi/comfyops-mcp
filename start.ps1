@@ -55,6 +55,8 @@ if (-not $BackendOnly -and -not (Test-Path (Join-Path $WebRoot "node_modules")))
 # --- Start backend ---
 if (-not $FrontendOnly) {
     Write-Host "Starting backend on :$BackendPort ..." -ForegroundColor Yellow
+    $env:MCP_PORT = "$BackendPort"
+    $env:MCP_HOST = "127.0.0.1"
     $backendProc = Start-Process pwsh -NoNewWindow -PassThru -WindowStyle $WindowStyle -ArgumentList @(
         "-NoProfile", "-Command", "uv run python -m comfyops_mcp.server"
     ) -WorkingDirectory $RepoRoot

@@ -7,6 +7,8 @@ import Gallery from "@/pages/Gallery";
 import Workflows from "@/pages/Workflows";
 import Models from "@/pages/Models";
 import Discover from "@/pages/Discover";
+import Help from "@/pages/Help";
+import Settings from "@/pages/Settings";
 import { checkHealth } from "@/lib/api";
 
 function PageContent({ page, onNavigate }: { page: Page; onNavigate: (p: string) => void }) {
@@ -23,6 +25,10 @@ function PageContent({ page, onNavigate }: { page: Page; onNavigate: (p: string)
       return <Discover onNavigate={onNavigate} />;
     case "models":
       return <Models />;
+    case "help":
+      return <Help />;
+    case "settings":
+      return <Settings />;
     default:
       return <Dashboard onNavigate={onNavigate} />;
   }

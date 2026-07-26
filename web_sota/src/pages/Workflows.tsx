@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { listWorkflows, getWorkflow, type Workflow, type WorkflowDetail } from "@/lib/api";
-import { Workflow as WorkflowIcon, Loader2, FileText, X, Image, Video, Search, Tag } from "lucide-react";
+import { Workflow as WorkflowIcon, Loader2, FileText, X, Image, Video, Search } from "lucide-react";
 
 export default function WorkflowsPage() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
@@ -10,7 +10,7 @@ export default function WorkflowsPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [tagFilter, setTagFilter] = useState<string>("");
+  const [tagFilter] = useState<string>("");
 
   const filtered = useMemo(() => {
     const q = searchQuery.toLowerCase();

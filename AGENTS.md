@@ -3,9 +3,11 @@
 ## Identity
 - **Name**: comfyops-mcp
 - **Purpose**: Local generative AI engine — wraps ComfyUI for image/video/upscale/inpaint
-- **Stack**: FastMCP 3.2+, httpx, SQLite3, comfyui_manager
+- **Stack**: FastMCP 3.4+, httpx, SQLite3, comfyui_manager
 - **Ports**: 11086 (ComfyUI), 11087 (backend), 11088 (frontend)
 - **Transports**: stdio and streamable HTTP
+- **Onboarding**: `docs/ONBOARDING.md` — ComfyUI + models; catalog via civitai-mcp
+- **Fleet start**: `mcp-central-docs/starts/comfyops-mcp-start.bat`
 
 ## Key Files
 

@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "text",
+            "text": "## Session Context (ComfyOps MCP)\n\nYou can generate images, video, upscales, and inpaints via local ComfyUI. 5 portmanteau tools + 2 Prefab cards.\n\n**Before starting work:**\n1. Check ComfyUI health: comfy_models(operation=\"health\")\n2. Browse workflows: comfy_workflows(operation=\"list\")\n\n**At end of work, save generations:**\n- Use comfy_library(operation=\"record\") to persist prompt and outputs to the SQLite depot"
+          }
+        ]
+      }
+    ]
+  }
+}

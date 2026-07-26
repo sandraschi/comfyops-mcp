@@ -114,6 +114,29 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
             {health.tool_count ?? "?"} tools
           </p>
         )}
+        {!comfyHealth?.ok && (
+          <div
+            data-testid="onboarding-cta"
+            className="mt-5 rounded-lg border-2 border-red-500/80 bg-red-950/50 p-4"
+          >
+            <p className="text-red-200 font-semibold text-sm mb-1">
+              ComfyUI is offline — generation is blocked
+            </p>
+            <p className="text-red-300/80 text-sm mb-3">
+              Install or start ComfyUI, set{" "}
+              <code className="text-red-100">COMFYOPS_COMFYUI_DIR</code>, then restart. Models:
+              use civitai-mcp or place checkpoints under your models dir.
+            </p>
+            <button
+              type="button"
+              data-testid="onboarding-cta-help"
+              onClick={() => onNavigate("help")}
+              className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-semibold"
+            >
+              Open onboarding Help
+            </button>
+          </div>
+        )}
       </div>
 
       {/* KPI cards */}

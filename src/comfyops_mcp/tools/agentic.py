@@ -3,13 +3,13 @@
 import logging
 from typing import Annotated
 
-from fastmcp import FastMCP, Context
+from fastmcp import Context, FastMCP
 
 logger = logging.getLogger(__name__)
 
 
 def register_tools(mcp: FastMCP):
-    @mcp.tool()
+    @mcp.tool(annotations={"readonly": True})
     async def comfy_agentic_assist(
         goal: Annotated[str, "Natural language description of what to generate."],
         ctx: Context = None,
