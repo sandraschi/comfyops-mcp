@@ -5,14 +5,14 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "comfyops-mcp"
 version = "0.1.0"
-description = "Local generative AI engine â€” ComfyUI wrapping for image/video/upscale generation"
+description = "Local generative AI engine — ComfyUI wrapping for image/video/upscale generation"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [{name = "Sandra Schipal"}]
 
 dependencies = [
-    "fastmcp>=3.4.4,<4",
+    "fastmcp>=3.4.0,<4",
     "httpx>=0.27.0",
     "pillow>=10.0.0",
     "prefab-ui>=0.14.0",
@@ -24,7 +24,7 @@ dependencies = [
 dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
-    "ruff>=0.16.0,<0.17",
+    "ruff>=0.15.2",
 ]
 
 [project.scripts]
@@ -54,5 +54,5 @@ dev = [
     "httpx>=0.28.1",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
-    "ruff>=0.16.0,<0.17",
+    "ruff>=0.15.21",
 ]
