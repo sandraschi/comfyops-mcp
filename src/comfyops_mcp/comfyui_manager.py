@@ -56,14 +56,13 @@ async def check_vram(model_vram_gb: float = 4.0) -> dict:
     if not health["ok"]:
         return {"ok": False, "vram_free": 0, "required": model_vram_gb, "error": health.get("error")}
 
-    vram_free_gb = health.get("vram_free", 0) / (1024 ** 3)
+    vram_free_gb = health.get("vram_free", 0) / (1024**3)
     if vram_free_gb < model_vram_gb:
         return {
             "ok": False,
             "vram_free": round(vram_free_gb, 1),
             "required": model_vram_gb,
-            "error": f"Only {vram_free_gb:.1f} GB VRAM free, need ~{model_vram_gb:.1f} GB. "
-                     f"Try closing other GPU apps.",
+            "error": f"Only {vram_free_gb:.1f} GB VRAM free, need ~{model_vram_gb:.1f} GB. Try closing other GPU apps.",
         }
     return {"ok": True, "vram_free": round(vram_free_gb, 1), "required": model_vram_gb}
 
@@ -111,15 +110,61 @@ async def wait_for_result(prompt_id: str, timeout: int | None = None) -> dict:
         r = await client.get(f"/history/{prompt_id}", timeout=10)
         if r.status_code == 200:
             history = r.json()
-            if prompt_id in history:
-                outputs = history[prompt_id].get("outputs", {})
-                status = history[prompt_id].get("status", {})
-                completed = status.get("completed", False)
-                if completed or status.get("status_str") == "success":
-                    return {"ok": True, "outputs": _gather_outputs(outputs), "prompt_id": prompt_id}
-                error = status.get("messages", [])
-                return {"ok": False, "error": f"Generation failed: {error}", "prompt_id": prompt_id}
+            if prompt_id not in history:
+                continue
+            entry = history[prompt_id]
+            outputs = entry.get("outputs", {})
+            status = entry.get("status", {}) or {}
+            status_str = status.get("status_str", "")
+            completed = status.get("completed", False)
+            if completed or status_str == "success" or outputs:
+                return {"ok": True, "outputs": _gather_outputs(outputs), "prompt_id": prompt_id}
+            if status_str in ("error", "failed"):
+                messages = status.get("messages", [])
+                return {"ok": False, "error": f"Generation failed: {messages}", "prompt_id": prompt_id}
+            # Still queued/running — keep polling
     return {"ok": False, "error": f"Timeout after {actual_timeout}s", "prompt_id": prompt_id}
+
+
+async def get_object_info() -> dict:
+    """Fetch ComfyUI node registry (/object_info) for validation and UI→API conversion."""
+    client = get_client()
+    try:
+        r = await client.get("/object_info", timeout=15)
+        if r.status_code != 200:
+            return {"ok": False, "error": f"HTTP {r.status_code}"}
+        return {"ok": True, "object_info": r.json()}
+    except httpx.ConnectError as e:
+        return {"ok": False, "error": f"ComfyUI not reachable: {e}"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+async def ensure_comfyui_running(timeout: int = 120) -> dict:
+    """Start ComfyUI sidecar if needed and wait until /system_stats responds."""
+    health = await check_health()
+    if health.get("ok"):
+        return {"ok": True, "started": False, "message": "ComfyUI already running.", **health}
+    proc = start_sidecar()
+    if proc is None:
+        return {
+            "ok": False,
+            "error": f"ComfyUI not found at {Path(_cfg.COMFYUI_DIR) / 'main.py'}",
+            "suggestions": ["Set COMFYOPS_COMFYUI_DIR to your ComfyUI install."],
+        }
+    start = time.time()
+    while time.time() - start < timeout:
+        await asyncio.sleep(2)
+        health = await check_health()
+        if health.get("ok"):
+            return {
+                "ok": True,
+                "started": True,
+                "pid": proc.pid,
+                "message": f"ComfyUI ready after {int(time.time() - start)}s.",
+                **health,
+            }
+    return {"ok": False, "error": f"ComfyUI did not become ready within {timeout}s"}
 
 
 def _gather_outputs(outputs: dict) -> list:
@@ -132,8 +177,13 @@ def _gather_outputs(outputs: dict) -> list:
                     if isinstance(item, dict):
                         filename = item.get("filename")
                         if filename:
-                            files.append({"filename": filename, "type": item.get("type", "output"),
-                                          "subfolder": item.get("subfolder", "")})
+                            files.append(
+                                {
+                                    "filename": filename,
+                                    "type": item.get("type", "output"),
+                                    "subfolder": item.get("subfolder", ""),
+                                }
+                            )
     return files
 
 
@@ -167,14 +217,16 @@ def get_workflow_depot() -> list:
         meta = workflow.get("_meta", {})
         sidecar = f.with_suffix(".md")
         docs = sidecar.read_text(encoding="utf-8") if sidecar.exists() else ""
-        workflows.append({
-            "id": wf_id,
-            "name": meta.get("name", wf_id),
-            "description": meta.get("description", ""),
-            "model_type": meta.get("model_type", "image"),
-            "params": meta.get("params", {}),
-            "docs": docs[:500] if docs else "",
-        })
+        workflows.append(
+            {
+                "id": wf_id,
+                "name": meta.get("name", wf_id),
+                "description": meta.get("description", ""),
+                "model_type": meta.get("model_type", "image"),
+                "params": meta.get("params", {}),
+                "docs": docs[:500] if docs else "",
+            }
+        )
     return workflows
 
 

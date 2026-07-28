@@ -1,4 +1,4 @@
-param(
+﻿param(
     [switch]$Headless,
     [switch]$BackendOnly,
     [switch]$FrontendOnly,
@@ -26,7 +26,7 @@ Write-Host "=== comfyops-mcp ===" -ForegroundColor Cyan
 function Require-Command {
     param([string]$Cmd, [string]$WingetId, [string]$Label)
     if (Get-Command $Cmd -ErrorAction SilentlyContinue) { return }
-    Write-Host "  $Label not found — installing via winget..." -ForegroundColor Yellow
+    Write-Host "  $Label not found - installing via winget..." -ForegroundColor Yellow
     if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
         Write-Host "ERROR: winget unavailable. Install $Label manually." -ForegroundColor Red; exit 1
     }

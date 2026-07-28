@@ -9,12 +9,12 @@ from fastmcp import FastMCP
 
 from comfyops_mcp import config as _cfg
 from comfyops_mcp.comfyui_manager import get_workflow_depot
+from comfyops_mcp.workflow_utils import is_ui_format, normalize_for_prompt
 
 logger = logging.getLogger(__name__)
 
 _COMMUNITY_SOURCES = [
-    {"name": "ComfyUI Examples", "url": "https://comfyanonymous.github.io/ComfyUI_examples/",
-     "type": "official"},
+    {"name": "ComfyUI Examples", "url": "https://comfyanonymous.github.io/ComfyUI_examples/", "type": "official"},
     {"name": "CivitAI", "url": "https://civitai.com", "type": "marketplace"},
     {"name": "OpenArt", "url": "https://openart.ai/workflows", "type": "community"},
     {"name": "ComfyUI Registry", "url": "https://registry.comfy.org", "type": "registry"},
@@ -26,8 +26,9 @@ _COMMUNITY_SOURCES = [
 def register_tools(mcp: FastMCP):
     @mcp.tool(annotations={"readonly": True})
     async def comfy_workflows(
-        operation: Annotated[Literal["list", "get", "validate", "register", "search", "discover"],
-                             "Operation to perform."],
+        operation: Annotated[
+            Literal["list", "get", "validate", "register", "search", "discover"], "Operation to perform."
+        ],
         workflow_id: Annotated[str | None, "Workflow ID for get/validate/register."] = None,
         workflow_json: Annotated[str | None, "JSON string for register."] = None,
         name: Annotated[str | None, "Display name for register."] = None,
@@ -50,14 +51,16 @@ def register_tools(mcp: FastMCP):
                             tags="t2i,portrait", source_url="https://civitai.com/...")
         """
         if operation == "discover":
-            return {"success": True, "sources": _COMMUNITY_SOURCES,
-                    "message": f"{len(_COMMUNITY_SOURCES)} community sources for finding workflows. "
-                               "Use comfy_workflows/register to add any you find."}
+            return {
+                "success": True,
+                "sources": _COMMUNITY_SOURCES,
+                "message": f"{len(_COMMUNITY_SOURCES)} community sources for finding workflows. "
+                "Use comfy_workflows/register to add any you find.",
+            }
 
         if operation == "list":
             depot = get_workflow_depot()
-            return {"success": True, "workflows": depot,
-                    "message": f"{len(depot)} workflows in local depot."}
+            return {"success": True, "workflows": depot, "message": f"{len(depot)} workflows in local depot."}
 
         if operation == "search":
             depot = get_workflow_depot()
@@ -74,8 +77,11 @@ def register_tools(mcp: FastMCP):
                 tag_match = any(t in wf_tags for t in tag_list) if tag_list else True
                 if (name_match or desc_match or id_match) and tag_match:
                     results.append(wf)
-            return {"success": True, "workflows": results,
-                    "message": f"Found {len(results)} workflows matching '{query or tags}'."}
+            return {
+                "success": True,
+                "workflows": results,
+                "message": f"Found {len(results)} workflows matching '{query or tags}'.",
+            }
 
         if operation == "get":
             if not workflow_id:
@@ -83,26 +89,32 @@ def register_tools(mcp: FastMCP):
             wf_path = Path(_cfg.WORKFLOWS_DIR) / f"{workflow_id}.json"
             if not wf_path.exists():
                 available = [w["id"] for w in get_workflow_depot()]
-                return {"success": False,
-                        "error": f"Workflow '{workflow_id}' not found in local depot.",
-                        "suggestions": [
-                            f"Available locally: {', '.join(available[:10])}",
-                            "Try comfy_workflows/discover to find more from the community.",
-                        ]}
+                return {
+                    "success": False,
+                    "error": f"Workflow '{workflow_id}' not found in local depot.",
+                    "suggestions": [
+                        f"Available locally: {', '.join(available[:10])}",
+                        "Try comfy_workflows/discover to find more from the community.",
+                    ],
+                }
             workflow = json.loads(wf_path.read_text(encoding="utf-8"))
             meta = workflow.get("_meta", {})
             sidecar = wf_path.with_suffix(".md")
             docs = sidecar.read_text(encoding="utf-8") if sidecar.exists() else ""
-            return {"success": True, "workflow": {
-                "id": workflow_id, "name": meta.get("name", workflow_id),
-                "description": meta.get("description", ""),
-                "model_type": meta.get("model_type", "image"),
-                "params": meta.get("params", {}),
-                "tags": meta.get("tags", ""),
-                "source_url": meta.get("source_url", ""),
-                "docs": docs,
-                "node_count": len([k for k in workflow if not k.startswith("_")]),
-            }}
+            return {
+                "success": True,
+                "workflow": {
+                    "id": workflow_id,
+                    "name": meta.get("name", workflow_id),
+                    "description": meta.get("description", ""),
+                    "model_type": meta.get("model_type", "image"),
+                    "params": meta.get("params", {}),
+                    "tags": meta.get("tags", ""),
+                    "source_url": meta.get("source_url", ""),
+                    "docs": docs,
+                    "node_count": len([k for k in workflow if not k.startswith("_")]),
+                },
+            }
 
         if operation == "validate":
             if not workflow_id:
@@ -113,8 +125,12 @@ def register_tools(mcp: FastMCP):
             try:
                 data = json.loads(wf_path.read_text(encoding="utf-8"))
                 nodes = [k for k in data if not k.startswith("_")]
-                return {"success": True, "valid": True, "node_count": len(nodes),
-                        "message": f"Workflow '{workflow_id}' has {len(nodes)} nodes."}
+                return {
+                    "success": True,
+                    "valid": True,
+                    "node_count": len(nodes),
+                    "message": f"Workflow '{workflow_id}' has {len(nodes)} nodes.",
+                }
             except json.JSONDecodeError as e:
                 return {"success": False, "error": f"Invalid JSON: {e}"}
 
@@ -125,6 +141,10 @@ def register_tools(mcp: FastMCP):
                 data = json.loads(workflow_json)
             except json.JSONDecodeError as e:
                 return {"success": False, "error": f"Invalid JSON: {e}"}
+            if is_ui_format(data):
+                data = normalize_for_prompt(data)
+                meta_src = json.loads(workflow_json).get("_meta", {})
+                data["_meta"] = data.get("_meta") or meta_src
             meta = data.setdefault("_meta", {})
             if name:
                 meta["name"] = name
@@ -137,10 +157,15 @@ def register_tools(mcp: FastMCP):
             wf_path = Path(_cfg.WORKFLOWS_DIR) / f"{workflow_id}.json"
             wf_path.parent.mkdir(parents=True, exist_ok=True)
             wf_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
-            return {"success": True, "message": f"Registered workflow '{workflow_id}' in local depot.",
-                    "workflow_id": workflow_id,
-                    "node_count": len([k for k in data if not k.startswith("_")]),
-                    "suggestions": ["Run comfy_workflows/search to find it in the depot.",
-                                    "Add a sidecar .md file at workflows/{id}.md for human docs."]}
+            return {
+                "success": True,
+                "message": f"Registered workflow '{workflow_id}' in local depot.",
+                "workflow_id": workflow_id,
+                "node_count": len([k for k in data if not k.startswith("_")]),
+                "suggestions": [
+                    "Run comfy_workflows/search to find it in the depot.",
+                    "Add a sidecar .md file at workflows/{id}.md for human docs.",
+                ],
+            }
 
         return {"success": False, "error": f"Unknown operation: {operation}"}

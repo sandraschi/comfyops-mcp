@@ -34,8 +34,7 @@ def _init_db():
 def register_tools(mcp: FastMCP):
     @mcp.tool(annotations={"readonly": True})
     async def comfy_library(
-        operation: Annotated[Literal["recent", "search", "record"],
-                             "Operation to perform."],
+        operation: Annotated[Literal["recent", "search", "record"], "Operation to perform."],
         limit: Annotated[int | None, "Max results."] = 20,
         query: Annotated[str | None, "Search text."] = None,
         prompt_id: Annotated[str | None, "Prompt ID for record."] = None,
@@ -59,11 +58,12 @@ def register_tools(mcp: FastMCP):
         if operation == "recent":
             with sqlite3.connect(str(_db_path())) as conn:
                 conn.row_factory = sqlite3.Row
-                rows = conn.execute(
-                    "SELECT * FROM generations ORDER BY created_at DESC LIMIT ?", (limit,)
-                ).fetchall()
-            return {"success": True, "generations": [dict(r) for r in rows],
-                    "message": f"{len(rows)} recent generations."}
+                rows = conn.execute("SELECT * FROM generations ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+            return {
+                "success": True,
+                "generations": [dict(r) for r in rows],
+                "message": f"{len(rows)} recent generations.",
+            }
 
         if operation == "search":
             if not query:
@@ -74,8 +74,7 @@ def register_tools(mcp: FastMCP):
                     "SELECT * FROM generations WHERE prompt LIKE ? ORDER BY created_at DESC LIMIT ?",
                     (f"%{query}%", limit),
                 ).fetchall()
-            return {"success": True, "generations": [dict(r) for r in rows],
-                    "message": f"Found {len(rows)} matches."}
+            return {"success": True, "generations": [dict(r) for r in rows], "message": f"Found {len(rows)} matches."}
 
         if operation == "record":
             if not prompt_id:
@@ -85,9 +84,15 @@ def register_tools(mcp: FastMCP):
                     "INSERT OR IGNORE INTO generations "
                     "(prompt_id, workflow_id, prompt, seed, model, params, outputs, created_at) "
                     "VALUES (?, ?, ?, ?, ?, '{}', ?, ?)",
-                    (prompt_id, workflow_id or "", prompt_text or "",
-                     seed_val or 0, model or "", outputs or "[]",
-                     datetime.now(UTC).isoformat()),
+                    (
+                        prompt_id,
+                        workflow_id or "",
+                        prompt_text or "",
+                        seed_val or 0,
+                        model or "",
+                        outputs or "[]",
+                        datetime.now(UTC).isoformat(),
+                    ),
                 )
             return {"success": True, "message": "Generation recorded."}
 

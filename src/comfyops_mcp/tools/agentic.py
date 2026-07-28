@@ -29,23 +29,26 @@ def register_tools(mcp: FastMCP):
         ## Examples
             comfy_agentic_assist(goal="Create a cinematic aerial shot of a cyberpunk city")
         """
-        recovery = ("This tool requires MCP sampling (SEP-1577). "
-                    "Try: comfy_workflows/list → comfy_generate")
+        recovery = "This tool requires MCP sampling (SEP-1577). Try: comfy_workflows/list → comfy_generate"
 
         if ctx is None:
-            return {"success": False, "error": "MCP sampling unsupported.",
-                    "error_type": "sampling_unavailable",
-                    "suggestions": [recovery]}
+            return {
+                "success": False,
+                "error": "MCP sampling unsupported.",
+                "error_type": "sampling_unavailable",
+                "suggestions": [recovery],
+            }
 
         try:
             result = await ctx.sample(
-                f"Plan generation for: {goal}\n\n"
-                "Return: workflow_id, detailed prompt, params JSON.",
+                f"Plan generation for: {goal}\n\nReturn: workflow_id, detailed prompt, params JSON.",
                 max_tokens=500,
             )
-            return {"success": True, "agent_plan": str(result),
-                    "message": f"Agent plan for: {goal[:100]}..."}
+            return {"success": True, "agent_plan": str(result), "message": f"Agent plan for: {goal[:100]}..."}
         except Exception as e:
-            return {"success": False, "error": f"Sampling failed: {e}",
-                    "error_type": "sampling_error",
-                    "suggestions": [recovery]}
+            return {
+                "success": False,
+                "error": f"Sampling failed: {e}",
+                "error_type": "sampling_error",
+                "suggestions": [recovery],
+            }

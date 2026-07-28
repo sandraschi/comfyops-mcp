@@ -74,50 +74,75 @@ class TestComfyGenerate:
         return capture_tool(register_tools, "comfy_generate")
 
     async def test_missing_workflow(self, tool, isolated_config, mock_comfy_client):
-        result = await tool(
-            operation="image",
-            workflow_id="does-not-exist",
-            prompt="hi",
-        )
+        with patch(
+            "comfyops_mcp.tools.generate.ensure_comfyui_running",
+            new_callable=AsyncMock,
+            return_value={"ok": True},
+        ):
+            result = await tool(
+                operation="image",
+                workflow_id="does-not-exist",
+                prompt="hi",
+            )
         assert result["success"] is False
         assert "not found" in result["error"].lower()
 
     async def test_vram_blocks(self, tool, isolated_config, mock_comfy_client):
         with patch(
-            "comfyops_mcp.tools.generate.check_vram",
+            "comfyops_mcp.tools.generate.ensure_comfyui_running",
             new_callable=AsyncMock,
-            return_value={"ok": False, "error": "low vram", "vram_free": 1, "required": 6},
+            return_value={"ok": True},
         ):
-            result = await tool(operation="image", workflow_id="test-workflow", prompt="x")
+            with patch(
+                "comfyops_mcp.tools.generate.check_vram",
+                new_callable=AsyncMock,
+                return_value={"ok": False, "error": "low vram", "vram_free": 1, "required": 6},
+            ):
+                result = await tool(operation="image", workflow_id="test-workflow", prompt="x")
         assert result["success"] is False
         assert result["error_type"] == "vram"
 
     async def test_happy_path(self, tool, isolated_config, mock_comfy_client):
         with patch(
-            "comfyops_mcp.tools.generate.check_vram",
+            "comfyops_mcp.tools.generate.ensure_comfyui_running",
             new_callable=AsyncMock,
-            return_value={"ok": True, "vram_free": 10, "required": 6},
+            return_value={"ok": True},
         ):
             with patch(
-                "comfyops_mcp.tools.generate.queue_prompt",
+                "comfyops_mcp.tools.generate.check_vram",
                 new_callable=AsyncMock,
-                return_value={"ok": True, "prompt_id": "abc"},
+                return_value={"ok": True, "vram_free": 10, "required": 6},
             ):
                 with patch(
-                    "comfyops_mcp.tools.generate.wait_for_result",
+                    "comfyops_mcp.tools.generate.get_object_info",
                     new_callable=AsyncMock,
-                    return_value={
-                        "ok": True,
-                        "outputs": [{"filename": "x.png"}],
-                        "prompt_id": "abc",
-                    },
+                    return_value={"ok": True, "object_info": {"KSampler": {}, "CheckpointLoaderSimple": {}}},
                 ):
-                    result = await tool(
-                        operation="image",
-                        workflow_id="test-workflow",
-                        prompt="a cat",
-                        seed=7,
-                    )
+                    with patch(
+                        "comfyops_mcp.tools.generate.ensure_workflow_nodes",
+                        new_callable=AsyncMock,
+                        return_value={"ok": True, "valid": True, "installed": []},
+                    ):
+                        with patch(
+                            "comfyops_mcp.tools.generate.queue_prompt",
+                            new_callable=AsyncMock,
+                            return_value={"ok": True, "prompt_id": "abc"},
+                        ):
+                            with patch(
+                                "comfyops_mcp.tools.generate.wait_for_result",
+                                new_callable=AsyncMock,
+                                return_value={
+                                    "ok": True,
+                                    "outputs": [{"filename": "x.png"}],
+                                    "prompt_id": "abc",
+                                },
+                            ):
+                                result = await tool(
+                                    operation="image",
+                                    workflow_id="test-workflow",
+                                    prompt="a cat",
+                                    seed=7,
+                                )
         assert result["success"] is True
         assert result["seed"] == 7
         assert result["prompt_id"] == "abc"
@@ -125,15 +150,30 @@ class TestComfyGenerate:
 
     async def test_queue_failure(self, tool, isolated_config, mock_comfy_client):
         with patch(
-            "comfyops_mcp.tools.generate.check_vram",
+            "comfyops_mcp.tools.generate.ensure_comfyui_running",
             new_callable=AsyncMock,
-            return_value={"ok": True, "vram_free": 10, "required": 6},
+            return_value={"ok": True},
         ):
             with patch(
-                "comfyops_mcp.tools.generate.queue_prompt",
+                "comfyops_mcp.tools.generate.check_vram",
                 new_callable=AsyncMock,
-                return_value={"ok": False, "error": "bad graph"},
+                return_value={"ok": True, "vram_free": 10, "required": 6},
             ):
-                result = await tool(operation="image", workflow_id="test-workflow", prompt="x")
+                with patch(
+                    "comfyops_mcp.tools.generate.get_object_info",
+                    new_callable=AsyncMock,
+                    return_value={"ok": True, "object_info": {}},
+                ):
+                    with patch(
+                        "comfyops_mcp.tools.generate.ensure_workflow_nodes",
+                        new_callable=AsyncMock,
+                        return_value={"ok": True, "valid": True},
+                    ):
+                        with patch(
+                            "comfyops_mcp.tools.generate.queue_prompt",
+                            new_callable=AsyncMock,
+                            return_value={"ok": False, "error": "bad graph"},
+                        ):
+                            result = await tool(operation="image", workflow_id="test-workflow", prompt="x")
         assert result["success"] is False
         assert result["error_type"] == "comfyui"

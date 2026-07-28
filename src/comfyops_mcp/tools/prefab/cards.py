@@ -16,33 +16,40 @@ def register_prefab_cards(mcp: FastMCP):
         health = await check_health()
         depot = get_workflow_depot()
         from comfyops_mcp.comfyui_manager import list_models
+
         models = await list_models()
         workflows = depot
 
         return {
             "content": f"ComfyUI {'running' if health['ok'] else 'offline'}, "
-                       f"{len(workflows)} workflows, {len(models)} models",
+            f"{len(workflows)} workflows, {len(models)} models",
             "structured_content": {
                 "type": "app",
                 "app": "PrefabApp",
                 "components": [
                     {"type": "heading", "text": "ComfyOps Status", "level": 1},
                     {"type": "divider"},
-                    {"type": "metric", "label": "ComfyUI", "value": "Connected" if health["ok"] else "Offline",
-                     "color": "green" if health["ok"] else "red"},
+                    {
+                        "type": "metric",
+                        "label": "ComfyUI",
+                        "value": "Connected" if health["ok"] else "Offline",
+                        "color": "green" if health["ok"] else "red",
+                    },
                     {"type": "metric", "label": "Workflows", "value": str(len(workflows))},
                     {"type": "metric", "label": "Models", "value": str(len(models))},
-                    {"type": "metric", "label": "VRAM Free", "value":
-                     f"{round(health.get('vram_free', 0) / 1024**3, 1)} GB"
-                     if health.get("vram_free") else "N/A"},
+                    {
+                        "type": "metric",
+                        "label": "VRAM Free",
+                        "value": f"{round(health.get('vram_free', 0) / 1024**3, 1)} GB"
+                        if health.get("vram_free")
+                        else "N/A",
+                    },
                 ],
             },
         }
 
     @mcp.tool(app=True)
-    async def show_generation_card(
-        prompt: str, seed: int, workflow_id: str, outputs: list | None = None
-    ) -> dict:
+    async def show_generation_card(prompt: str, seed: int, workflow_id: str, outputs: list | None = None) -> dict:
         """Display a single generation result as a Prefab card.
 
         ## Return Format

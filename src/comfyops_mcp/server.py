@@ -29,11 +29,14 @@ def register_tools():
     from comfyops_mcp.tools.generate import register_tools as reg_gen
     from comfyops_mcp.tools.library import register_tools as reg_lib
     from comfyops_mcp.tools.models_tool import register_tools as reg_models
+    from comfyops_mcp.tools.nodes_tool import register_tools as reg_nodes
     from comfyops_mcp.tools.prefab.cards import register_prefab_cards
     from comfyops_mcp.tools.workflows import register_tools as reg_wf
+
     reg_gen(mcp)
     reg_wf(mcp)
     reg_models(mcp)
+    reg_nodes(mcp)
     reg_lib(mcp)
     reg_agentic(mcp)
     register_prefab_cards(mcp)
@@ -62,35 +65,53 @@ def _run_http(port: int):
 
     async def health(request: Request) -> JSONResponse:
         comfy = await _check_comfyui_health()
-        return JSONResponse({
-            "status": "ok",
-            "server": "comfyops-mcp",
-            "version": "0.1.0",
-            "uptime_seconds": int(_time.time() - _START_TIME),
-            "tool_count": tool_count,
-            "providers": {"comfyui": comfy},
-        })
+        return JSONResponse(
+            {
+                "status": "ok",
+                "server": "comfyops-mcp",
+                "version": "0.1.0",
+                "uptime_seconds": int(_time.time() - _START_TIME),
+                "tool_count": tool_count,
+                "providers": {"comfyui": comfy},
+            }
+        )
 
     async def diagnostics(request: Request) -> JSONResponse:
         await _check_comfyui_health()
         tool_names = []
         if hasattr(mcp, "_tool_manager"):
             tool_names = [{"name": name} for name in mcp._tool_manager.tools]
-        return JSONResponse({
-            "status": "ok",
-            "server": "comfyops-mcp",
-            "version": "0.1.0",
-            "uptime_seconds": int(_time.time() - _START_TIME),
-            "tool_count": len(tool_names),
-            "tools": tool_names,
-            "system": {"windows": True},
-            "errors": [],
-        })
+        return JSONResponse(
+            {
+                "status": "ok",
+                "server": "comfyops-mcp",
+                "version": "0.1.0",
+                "uptime_seconds": int(_time.time() - _START_TIME),
+                "tool_count": len(tool_names),
+                "tools": tool_names,
+                "system": {"windows": True},
+                "errors": [],
+            }
+        )
+
+    from comfyops_mcp import rest_api as _rest
 
     app = Starlette(
         routes=[
             Route("/api/health", endpoint=health),
             Route("/api/v1/diagnostics", endpoint=diagnostics),
+            Route("/api/comfyui/health", endpoint=_rest.api_comfyui_health),
+            Route("/api/comfyui/ensure", endpoint=_rest.api_comfyui_ensure, methods=["POST"]),
+            Route("/api/workflows", endpoint=_rest.api_workflows_list),
+            Route("/api/workflows/validate", endpoint=_rest.api_workflows_validate, methods=["POST"]),
+            Route("/api/workflows/{workflow_id}", endpoint=_rest.api_workflows_get),
+            Route("/api/models", endpoint=_rest.api_models_list),
+            Route("/api/vram", endpoint=_rest.api_vram),
+            Route("/api/generate", endpoint=_rest.api_generate, methods=["POST"]),
+            Route("/api/gallery/recent", endpoint=_rest.api_gallery_recent),
+            Route("/api/nodes/status", endpoint=_rest.api_nodes_status),
+            Route("/api/nodes/install", endpoint=_rest.api_nodes_install, methods=["POST"]),
+            Route("/api/nodes/ensure", endpoint=_rest.api_nodes_ensure, methods=["POST"]),
             Route("/health", endpoint=health),
             Mount("/", app=mcp.sse_app()),
         ],
