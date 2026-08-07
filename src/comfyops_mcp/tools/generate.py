@@ -17,21 +17,39 @@ from comfyops_mcp.comfyui_manager import (
     wait_for_result,
 )
 from comfyops_mcp.manager_install import ensure_workflow_nodes
+from comfyops_mcp.tools.library import record_generation
 from comfyops_mcp.workflow_utils import normalize_for_prompt
 
 logger = logging.getLogger(__name__)
 
 _MODEL_VRAM_MAP = {
     "flux-klein-t2i": 6.0,
+    "flux-dev-t2i": 12.0,
+    "flux-schnell-t2i": 12.0,
+    "flux2-t2i": 10.0,
     "qwen-t2i-text": 8.0,
     "zimage-fast": 5.0,
     "sdxl-lora-t2i": 5.5,
+    "sdxl-t2i": 7.0,
+    "sd15-t2i": 2.5,
+    "sd15-img2img": 2.5,
+    "sd15-inpaint": 2.5,
+    "sd35-t2i": 12.0,
+    "hidream-t2i": 14.0,
+    "pixart-t2i": 4.0,
+    "lumina2-t2i": 10.0,
+    "hunyuan-image-t2i": 10.0,
+    "wan21-t2v": 20.0,
     "wan22-t2v": 20.0,
     "wan22-i2v": 20.0,
+    "hunyuan-t2v": 20.0,
+    "hunyuan-i2v": 20.0,
     "ltx-fast-t2v": 8.0,
+    "cosmos-t2v": 20.0,
+    "mochi-t2v": 12.0,
     "esrgan-upscale": 2.0,
     "supir-restore": 8.0,
-    "flux-inpaint": 6.0,
+    "flux-inpaint": 10.0,
 }
 
 
@@ -128,6 +146,14 @@ def register_tools(mcp: FastMCP):
         if not generation["ok"]:
             return {"success": False, "error": generation["error"], "error_type": "generation", "prompt_id": prompt_id}
 
+        record_generation(
+            prompt_id=prompt_id,
+            workflow_id=workflow_id,
+            prompt_text=prompt,
+            seed=seed_val,
+            model=workflow_id,
+            outputs=generation.get("outputs", []),
+        )
         return {
             "success": True,
             "prompt_id": prompt_id,
@@ -145,17 +171,57 @@ def _apply_params(workflow, prompt, seed, size, negative_prompt, image_input):
             continue
         cls = node.get("class_type", "")
         inputs = node.get("inputs", {})
-        if cls == "CLIPTextEncode":
-            if "text" in inputs:
+        if cls in ("CLIPTextEncode", "CLIPTextEncodeFlux", "TextEncodeQwenImageEdit", "TextEncodeHunyuanVideo_ImageToVideo"):
+            if "text" in inputs or "clip_l" in inputs or "prompt" in inputs or "t5xxl" in inputs:
                 clip_encountered += 1
-                if clip_encountered == 1:
-                    inputs["text"] = prompt
-                elif negative_prompt:
-                    inputs["text"] = negative_prompt
-        elif cls in ("KSampler", "SamplerCustom"):
+                text = prompt if clip_encountered == 1 else (negative_prompt or "")
+                if "text" in inputs:
+                    inputs["text"] = text
+                if "clip_l" in inputs:
+                    inputs["clip_l"] = text
+                if "t5xxl" in inputs:
+                    inputs["t5xxl"] = text
+                if "prompt" in inputs:
+                    inputs["prompt"] = text
+                if "user_prompt" in inputs:
+                    inputs["user_prompt"] = text
+        elif cls == "CLIPTextEncodeSDXL":
+            clip_encountered += 1
+            text = prompt if clip_encountered == 1 else (negative_prompt or "")
+            inputs["text_g"] = text
+            inputs["text_l"] = text
+        elif cls == "CLIPTextEncodeHunyuanDiT":
+            clip_encountered += 1
+            text = prompt if clip_encountered == 1 else (negative_prompt or "")
+            inputs["bert"] = text
+            inputs["mt5xl"] = text
+        elif cls == "CLIPTextEncodeLumina2":
+            clip_encountered += 1
+            inputs["user_prompt"] = prompt if clip_encountered == 1 else (negative_prompt or "")
+        elif cls == "RandomNoise":
+            if "noise_seed" in inputs:
+                inputs["noise_seed"] = seed
+        elif cls in ("KSampler", "SamplerCustom") or (cls == "FluxEraseNode" and "seed" in inputs):
             if "seed" in inputs:
                 inputs["seed"] = seed
-        elif cls == "EmptyLatentImage" and size:
+        elif cls in (
+            "EmptyLatentImage",
+            "EmptySD3LatentImage",
+            "EmptyFlux2LatentImage",
+            "EmptyHunyuanImageLatent",
+            "EmptyHunyuanLatentVideo",
+            "EmptyHunyuanVideo15Latent",
+            "EmptyLTXVLatentVideo",
+            "EmptyCosmosLatentVideo",
+            "EmptyMochiLatentVideo",
+            "EmptyHiDreamO1LatentImage",
+            "EmptyQwenImageLayeredLatentImage",
+        ) and size:
+            parts = size.split("x")
+            if len(parts) == 2:
+                inputs["width"] = int(parts[0])
+                inputs["height"] = int(parts[1])
+        elif cls in ("WanImageToVideo", "Wan22ImageToVideoLatent", "HunyuanVideo15ImageToVideo", "HunyuanImageToVideo") and size:
             parts = size.split("x")
             if len(parts) == 2:
                 inputs["width"] = int(parts[0])

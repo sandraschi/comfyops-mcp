@@ -19,3 +19,7 @@ COMFYUI_PYTHON = os.environ.get("COMFYOPS_COMFYUI_PYTHON", "")
 AUTO_INSTALL_NODES = os.environ.get("COMFYOPS_AUTO_INSTALL_NODES", "1") not in ("0", "false", "False", "no")
 MANAGER_BOOTSTRAP = os.environ.get("COMFYOPS_MANAGER_BOOTSTRAP", "1") not in ("0", "false", "False", "no")
 MANAGER_INSTALL_TIMEOUT = int(os.environ.get("COMFYOPS_MANAGER_INSTALL_TIMEOUT", "600"))
+
+# Prompt refinement LLM (Ollama)
+OLLAMA_URL = os.environ.get("COMFYOPS_OLLAMA_URL", "http://127.0.0.1:11434")
+LLM_MODEL = os.environ.get("COMFYOPS_LLM_MODEL", "pdurugyan/qwen3.5-9b-deepseek-v4-flash-Q4_K_M-v_2:latest")

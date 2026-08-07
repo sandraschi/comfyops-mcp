@@ -109,11 +109,14 @@ def _run_http(port: int):
             Route("/api/vram", endpoint=_rest.api_vram),
             Route("/api/generate", endpoint=_rest.api_generate, methods=["POST"]),
             Route("/api/gallery/recent", endpoint=_rest.api_gallery_recent),
+            Route("/api/output/{path:path}", endpoint=_rest.api_output_file),
+            Route("/api/prompt/templates", endpoint=_rest.api_prompt_templates),
+            Route("/api/prompt/enhance", endpoint=_rest.api_prompt_enhance, methods=["POST"]),
             Route("/api/nodes/status", endpoint=_rest.api_nodes_status),
             Route("/api/nodes/install", endpoint=_rest.api_nodes_install, methods=["POST"]),
             Route("/api/nodes/ensure", endpoint=_rest.api_nodes_ensure, methods=["POST"]),
             Route("/health", endpoint=health),
-            Mount("/", app=mcp.sse_app()),
+            Mount("/", app=mcp.http_app()),
         ],
         middleware=[
             Middleware(

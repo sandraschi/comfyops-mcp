@@ -1,5 +1,6 @@
 """comfy_library portmanteau — recent, search, record."""
 
+import json
 import logging
 import sqlite3
 from datetime import UTC, datetime
@@ -29,6 +30,34 @@ def _init_db():
                 created_at TEXT
             )
         """)
+
+
+def record_generation(
+    *,
+    prompt_id: str,
+    workflow_id: str,
+    prompt_text: str,
+    seed: int,
+    model: str = "",
+    outputs: list | None = None,
+) -> None:
+    """Persist a completed generation to the library (shared by MCP tool and REST)."""
+    _init_db()
+    with sqlite3.connect(str(_db_path())) as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO generations "
+            "(prompt_id, workflow_id, prompt, seed, model, params, outputs, created_at) "
+            "VALUES (?, ?, ?, ?, ?, '{}', ?, ?)",
+            (
+                prompt_id,
+                workflow_id,
+                prompt_text,
+                seed,
+                model,
+                json.dumps(outputs or []),
+                datetime.now(UTC).isoformat(),
+            ),
+        )
 
 
 def register_tools(mcp: FastMCP):
@@ -79,21 +108,14 @@ def register_tools(mcp: FastMCP):
         if operation == "record":
             if not prompt_id:
                 return {"success": False, "error": "prompt_id required."}
-            with sqlite3.connect(str(_db_path())) as conn:
-                conn.execute(
-                    "INSERT OR IGNORE INTO generations "
-                    "(prompt_id, workflow_id, prompt, seed, model, params, outputs, created_at) "
-                    "VALUES (?, ?, ?, ?, ?, '{}', ?, ?)",
-                    (
-                        prompt_id,
-                        workflow_id or "",
-                        prompt_text or "",
-                        seed_val or 0,
-                        model or "",
-                        outputs or "[]",
-                        datetime.now(UTC).isoformat(),
-                    ),
-                )
+            record_generation(
+                prompt_id=prompt_id,
+                workflow_id=workflow_id or "",
+                prompt_text=prompt_text or "",
+                seed=seed_val or 0,
+                model=model or "",
+                outputs=json.loads(outputs) if outputs else None,
+            )
             return {"success": True, "message": "Generation recorded."}
 
         return {"success": False, "error": f"Unknown operation: {operation}"}

@@ -144,6 +144,45 @@ export async function generateImage(params: {
   });
 }
 
+export function outputUrl(out: GenerationOutput): string {
+  const rel = out.subfolder
+    ? `${out.subfolder}/${out.filename}`
+    : out.filename;
+  return `${BASE}/api/output/${rel.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+export interface PromptTemplate {
+  category: string;
+  label: string;
+  prompt: string;
+}
+
+export async function listTemplates(): Promise<PromptTemplate[]> {
+  const res = await request<{ success: boolean; templates: PromptTemplate[] }>(
+    "/api/prompt/templates"
+  );
+  return res.templates ?? [];
+}
+
+export interface EnhanceResult {
+  success: boolean;
+  enhanced?: string;
+  original?: string;
+  provider?: string;
+  error?: string;
+}
+
+export async function enhancePrompt(
+  prompt: string,
+  workflowId?: string,
+  style?: string
+): Promise<EnhanceResult> {
+  return request<EnhanceResult>("/api/prompt/enhance", {
+    method: "POST",
+    body: JSON.stringify({ prompt, workflow_id: workflowId, style }),
+  });
+}
+
 // --- Gallery ---
 
 export interface GalleryItem {

@@ -6,11 +6,11 @@ import json
 import logging
 import random
 import sqlite3
-from datetime import UTC, datetime
 from pathlib import Path
 
+import httpx
 from starlette.requests import Request
-from starlette.responses import JSONResponse
+from starlette.responses import FileResponse, JSONResponse
 
 from comfyops_mcp import config as _cfg
 from comfyops_mcp.comfyui_manager import (
@@ -31,6 +31,7 @@ from comfyops_mcp.manager_install import (
     manager_status,
 )
 from comfyops_mcp.tools.generate import _MODEL_VRAM_MAP, _apply_params
+from comfyops_mcp.tools.library import record_generation
 from comfyops_mcp.workflow_utils import normalize_for_prompt, parse_workflow_json, validate_node_types
 
 logger = logging.getLogger(__name__)
@@ -71,40 +72,88 @@ def _library_recent(limit: int = 20) -> list[dict]:
     return items
 
 
-def _library_record(
-    *,
-    prompt_id: str,
-    workflow_id: str,
-    prompt: str,
-    seed: int,
-    model: str,
-    outputs: list,
-) -> None:
-    dbp = _library_db()
-    dbp.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(str(dbp)) as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS generations (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                prompt_id TEXT UNIQUE, workflow_id TEXT, prompt TEXT,
-                seed INTEGER, model TEXT, params TEXT, outputs TEXT,
-                created_at TEXT
-            )
-        """)
-        conn.execute(
-            "INSERT OR IGNORE INTO generations "
-            "(prompt_id, workflow_id, prompt, seed, model, params, outputs, created_at) "
-            "VALUES (?, ?, ?, ?, ?, '{}', ?, ?)",
-            (
-                prompt_id,
-                workflow_id,
-                prompt,
-                seed,
-                model,
-                json.dumps(outputs),
-                datetime.now(UTC).isoformat(),
-            ),
-        )
+_PROMPT_TEMPLATES: list[dict] = [
+    {
+        "category": "photo",
+        "label": "Cinematic portrait",
+        "prompt": "cinematic portrait of a weathered sailor, dramatic rim lighting, shallow depth of field, 85mm, film grain",
+    },
+    {
+        "category": "photo",
+        "label": "Golden hour landscape",
+        "prompt": "breathtaking golden hour landscape, rolling hills with morning mist, god rays through clouds, ultra detailed, 8k",
+    },
+    {
+        "category": "photo",
+        "label": "Macro nature",
+        "prompt": "extreme macro photograph of a dew-covered spider web, sparkling water droplets, bokeh background, high detail",
+    },
+    {
+        "category": "photo",
+        "label": "Street photography",
+        "prompt": "moody street photography in a rainy Tokyo alley, neon reflections on wet asphalt, candid moment, cinematic color grade",
+    },
+    {
+        "category": "fantasy",
+        "label": "Epic fantasy scene",
+        "prompt": "epic fantasy scene, ancient ruined citadel on a floating island, dragons circling, volumetric clouds, painterly detail",
+    },
+    {
+        "category": "fantasy",
+        "label": "Sci-fi starship",
+        "prompt": "interior of a massive sci-fi starship hangar, engineers at work, holographic displays, industrial lighting, concept art",
+    },
+    {
+        "category": "fantasy",
+        "label": "Cybernetic character",
+        "prompt": "cybernetic assassin character design, chrome and carbon fiber armor, glowing teal accents, full body, concept art sheet",
+    },
+    {
+        "category": "fantasy",
+        "label": "Mythical creature",
+        "prompt": "white phoenix spreading its wings over a frozen lake at dawn, ice crystals in the air, majestic, hyper detailed",
+    },
+    {
+        "category": "anime",
+        "label": "Anime heroine",
+        "prompt": "anime heroine with silver hair and crimson eyes, dynamic pose, detailed eyes, vibrant colors, high quality 2D illustration",
+    },
+    {
+        "category": "anime",
+        "label": "Studio Ghibli style",
+        "prompt": "whimsical ghibli-style village, curious children exploring a forest shrine, soft watercolor palette, warm sunlight",
+    },
+    {
+        "category": "anime",
+        "label": "Cyberpunk anime city",
+        "prompt": "cyberpunk anime city street at night, holographic billboards, flying cars, rain, neon purple and cyan, detailed background",
+    },
+    {
+        "category": "product",
+        "label": "Product hero shot",
+        "prompt": "premium product photography of a matte black mechanical keyboard, dramatic studio lighting, floating keys, clean gradient background",
+    },
+    {
+        "category": "product",
+        "label": "Food advertising",
+        "prompt": "appetizing gourmet burger commercial shot, melted cheese pull, steam rising, warm studio light, shallow depth of field",
+    },
+    {
+        "category": "video",
+        "label": "Drone landscape pan",
+        "prompt": "aerial drone shot slowly panning over a fjord, sheer cliffs, turquoise water, birds below, smooth camera movement",
+    },
+    {
+        "category": "video",
+        "label": "Character walk cycle",
+        "prompt": "character walking through a busy market street, camera tracking alongside, natural motion, cinematic lighting, 24fps",
+    },
+    {
+        "category": "video",
+        "label": "Nature macro motion",
+        "prompt": "time-lapse of a blooming flower, petals opening in slow motion, dew drops, dark background, ultra smooth",
+    },
+]
 
 
 async def api_comfyui_health(_request: Request) -> JSONResponse:
@@ -323,10 +372,10 @@ async def api_generate(request: Request) -> JSONResponse:
         )
 
     outputs = generation.get("outputs", [])
-    _library_record(
+    record_generation(
         prompt_id=prompt_id,
         workflow_id=workflow_id,
-        prompt=prompt,
+        prompt_text=prompt,
         seed=seed_val,
         model=workflow_id,
         outputs=outputs,
@@ -347,6 +396,79 @@ async def api_gallery_recent(request: Request) -> JSONResponse:
     items = _library_recent(limit)
     return JSONResponse({"success": True, "items": items})
 
+
+async def api_output_file(request: Request) -> FileResponse | JSONResponse:
+    """Serve a generation output file from ComfyUI's output directory."""
+    rel = request.path_params.get("path", "")
+    if not rel:
+        return JSONResponse({"success": False, "error": "path required."}, status_code=400)
+
+    comfyui_dir = Path(_cfg.COMFYUI_DIR)
+    out_root = (comfyui_dir / "output").resolve()
+    target = (out_root / rel).resolve()
+    if not target.is_relative_to(out_root) or not target.is_file():
+        return JSONResponse({"success": False, "error": "File not found."}, status_code=404)
+    return FileResponse(target)
+
+
+async def api_prompt_templates(_request: Request) -> JSONResponse:
+    """Return curated prompt templates grouped by category for the Generate page."""
+    return JSONResponse({"success": True, "templates": _PROMPT_TEMPLATES, "count": len(_PROMPT_TEMPLATES)})
+
+
+async def api_prompt_enhance(request: Request) -> JSONResponse:
+    """AI-refine a prompt via local Ollama (fallback: return input unchanged)."""
+    try:
+        body = await request.json()
+    except json.JSONDecodeError:
+        return JSONResponse({"success": False, "error": "Invalid JSON."}, status_code=400)
+
+    prompt = (body.get("prompt") or "").strip()
+    workflow_id = body.get("workflow_id") or ""
+    style = body.get("style") or ""
+    if not prompt:
+        return JSONResponse({"success": False, "error": "prompt required."}, status_code=400)
+
+    ollama = _cfg.OLLAMA_URL
+    system = (
+        "You are an expert AI image/video prompt engineer. Rewrite the user's prompt into a "
+        "detailed, high-quality generation prompt. Keep it under 120 words, one paragraph, "
+        "no commentary, no quotes, no explanation — output only the prompt."
+    )
+    if style:
+        system += f" Incorporate the style/direction: {style}."
+
+    try:
+        async with httpx.AsyncClient(timeout=90) as client:
+            r = await client.post(
+                f"{ollama}/api/chat",
+                json={
+                    "model": _cfg.LLM_MODEL,
+                    "messages": [
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": f"Workflow: {workflow_id}\nPrompt: {prompt}"},
+                    ],
+                    "stream": False,
+                    "keep_alive": 0,
+                    "options": {"temperature": 0.7},
+                },
+            )
+            if r.status_code != 200:
+                return JSONResponse(
+                    {"success": False, "error": f"Ollama HTTP {r.status_code}", "enhanced": prompt}, status_code=502
+                )
+            data = r.json()
+            enhanced = (data.get("message") or {}).get("content", "").strip()
+            if not enhanced:
+                return JSONResponse(
+                    {"success": False, "error": "Empty Ollama response.", "enhanced": prompt}, status_code=502
+                )
+            return JSONResponse({"success": True, "enhanced": enhanced, "original": prompt, "provider": "ollama"})
+    except Exception as e:
+        return JSONResponse(
+            {"success": False, "error": f"Ollama unreachable: {e}", "enhanced": prompt, "provider": "none"},
+            status_code=503,
+        )
 
 async def api_nodes_status(_request: Request) -> JSONResponse:
     return JSONResponse({"success": True, **manager_status()})

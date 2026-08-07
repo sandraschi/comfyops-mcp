@@ -33,12 +33,20 @@ async def check_health() -> dict:
         if r.status_code != 200:
             return {"ok": False, "error": f"HTTP {r.status_code}"}
         stats = r.json()
+        devices = stats.get("system", {}).get("devices") or stats.get("devices") or []
+        # v0.27+: VRAM lives on devices[0].vram_free; older builds used system.memory.free
+        if devices:
+            vram_free = devices[0].get("vram_free", 0)
+            vram_total = devices[0].get("vram_total", 0)
+        else:
+            vram_free = stats.get("system", {}).get("memory", {}).get("free", 0)
+            vram_total = stats.get("system", {}).get("memory", {}).get("total", 0)
         return {
             "ok": True,
             "comfyui_version": stats.get("system", {}).get("comfyui_version", "unknown"),
-            "cuda_devices": stats.get("system", {}).get("devices", []),
-            "vram_free": stats.get("system", {}).get("memory", {}).get("free", 0),
-            "vram_total": stats.get("system", {}).get("memory", {}).get("total", 0),
+            "cuda_devices": devices,
+            "vram_free": vram_free,
+            "vram_total": vram_total,
         }
     except httpx.ConnectError as e:
         return {"ok": False, "error": f"ComfyUI not reachable at {_cfg.COMFYUI_URL}: {e}"}

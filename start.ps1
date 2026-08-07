@@ -6,7 +6,8 @@
 )
 
 # --- Headless mode ---
-if ($Headless -and ($Host.UI.RawUI.WindowTitle -notmatch 'Hidden')) {
+if ($Headless -and -not $env:COMFYOPS_MCP_HEADLESS_HANDOFF) {
+    $env:COMFYOPS_MCP_HEADLESS_HANDOFF = '1'
     Start-Process pwsh -ArgumentList '-NoProfile', '-File', $PSCommandPath, '-Headless' -WindowStyle Hidden
     exit
 }
@@ -57,8 +58,8 @@ if (-not $FrontendOnly) {
     Write-Host "Starting backend on :$BackendPort ..." -ForegroundColor Yellow
     $env:MCP_PORT = "$BackendPort"
     $env:MCP_HOST = "127.0.0.1"
-    $backendProc = Start-Process pwsh -NoNewWindow -PassThru -WindowStyle $WindowStyle -ArgumentList @(
-        "-NoProfile", "-Command", "uv run python -m comfyops_mcp.server"
+    $backendProc = Start-Process pwsh -PassThru -WindowStyle $WindowStyle -ArgumentList @(
+        "-NoProfile", "-Command", "C:\Users\sandr\.local\bin\uv.exe run python -m comfyops_mcp.server"
     ) -WorkingDirectory $RepoRoot
 
     $ok = $false
@@ -84,7 +85,7 @@ if ($BackendOnly) {
 # --- Start frontend ---
 if (-not $BackendOnly) {
     Write-Host "Starting frontend on :$FrontendPort ..." -ForegroundColor Yellow
-    $frontendProc = Start-Process pwsh -NoNewWindow -PassThru -WindowStyle $WindowStyle -ArgumentList @(
+    $frontendProc = Start-Process pwsh -PassThru -WindowStyle $WindowStyle -ArgumentList @(
         "-NoProfile", "-Command", "npm run dev -- --port $FrontendPort"
     ) -WorkingDirectory $WebRoot
 }
