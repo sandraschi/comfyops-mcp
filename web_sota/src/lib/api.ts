@@ -1,5 +1,7 @@
 const BASE = "http://localhost:11087";
 
+export const API_BASE = BASE;
+
 async function request<T>(
   path: string,
   options?: RequestInit
@@ -200,4 +202,110 @@ export async function listRecent(limit = 20): Promise<GalleryItem[]> {
     `/api/gallery/recent?limit=${limit}`
   );
   return res.items ?? [];
+}
+
+export interface GalleryQuery {
+  workflow_id?: string;
+  model?: string;
+  q?: string;
+  date_from?: string;
+  date_to?: string;
+  sort?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface GalleryListResult {
+  success: boolean;
+  items: GalleryItem[];
+  total: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
+}
+
+export async function listGallery(query: GalleryQuery = {}): Promise<GalleryListResult> {
+  const params = new URLSearchParams();
+  if (query.workflow_id) params.set("workflow_id", query.workflow_id);
+  if (query.model) params.set("model", query.model);
+  if (query.q) params.set("q", query.q);
+  if (query.date_from) params.set("date_from", query.date_from);
+  if (query.date_to) params.set("date_to", query.date_to);
+  if (query.sort) params.set("sort", query.sort);
+  if (query.limit) params.set("limit", String(query.limit));
+  if (query.offset) params.set("offset", String(query.offset));
+  const qs = params.toString();
+  return request<GalleryListResult>(`/api/gallery${qs ? `?${qs}` : ""}`);
+}
+
+export async function deleteGenerations(promptIds: string[]): Promise<{ success: boolean; deleted: number }> {
+  return request<{ success: boolean; deleted: number }>("/api/gallery/delete", {
+    method: "POST",
+    body: JSON.stringify({ prompt_ids: promptIds }),
+  });
+}
+
+export interface RelatedResult {
+  success: boolean;
+  base: GalleryItem;
+  crossconnects: {
+    workflow: string;
+    model: string;
+    same_workflow_count: number;
+    same_model_count: number;
+  };
+  items: GalleryItem[];
+  count: number;
+}
+
+export async function getRelated(promptId: string): Promise<RelatedResult> {
+  return request<RelatedResult>(`/api/gallery/${encodeURIComponent(promptId)}/related`);
+}
+
+export function galleryExportUrl(format: "csv" | "json", query: GalleryQuery = {}): string {
+  const params = new URLSearchParams({ format });
+  if (query.workflow_id) params.set("workflow_id", query.workflow_id);
+  if (query.model) params.set("model", query.model);
+  if (query.q) params.set("q", query.q);
+  if (query.date_from) params.set("date_from", query.date_from);
+  if (query.date_to) params.set("date_to", query.date_to);
+  if (query.sort) params.set("sort", query.sort);
+  return `${BASE}/api/gallery/export?${params.toString()}`;
+}
+
+export function downloadItems(items: GalleryItem[], format: "csv" | "json"): void {
+  const ts = new Date().toISOString().replace(/[:.]/g, "-");
+  let blob: Blob;
+  let filename: string;
+  if (format === "csv") {
+    const esc = (v: unknown) => {
+      const s = String(v ?? "");
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [
+      ["prompt_id", "workflow_id", "prompt", "seed", "model", "created_at", "outputs"].join(","),
+      ...items.map((it) =>
+        [
+          esc(it.prompt_id),
+          esc(it.workflow_id),
+          esc(it.prompt),
+          esc(it.seed),
+          esc(it.model),
+          esc(it.date),
+          esc((it.outputs ?? []).map((o) => o.filename).join(";")),
+        ].join(",")
+      ),
+    ];
+    blob = new Blob([lines.join("\n")], { type: "text/csv" });
+    filename = `gallery-${ts}.csv`;
+  } else {
+    blob = new Blob([JSON.stringify(items, null, 2)], { type: "application/json" });
+    filename = `gallery-${ts}.json`;
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
