@@ -16,6 +16,8 @@ $WindowStyle = if ($Headless) { 'Hidden' } else { 'Normal' }
 $ErrorActionPreference = "Stop"
 $RepoRoot = $PSScriptRoot
 $ComfyUIPort = 11086
+$ComfyUIDir = $env:COMFYOPS_COMFYUI_DIR
+if ([string]::IsNullOrWhiteSpace($ComfyUIDir)) { $ComfyUIDir = "D:\ComfyUI" }
 $BackendPort = 11087
 $FrontendPort = 11088
 $WebRoot = Join-Path $RepoRoot "web_sota"
@@ -51,6 +53,34 @@ if (-not $BackendOnly -and -not (Test-Path (Join-Path $WebRoot "node_modules")))
     Push-Location $WebRoot
     npm install
     Pop-Location
+}
+
+# --- Start ComfyUI sidecar ---
+if (-not $BackendOnly -and -not $FrontendOnly) {
+    $ComfyUIPython = Join-Path $ComfyUIDir "venv\Scripts\python.exe"
+    if (-not (Test-Path $ComfyUIPython)) { $ComfyUIPython = Join-Path $ComfyUIDir ".venv\Scripts\python.exe" }
+    $ComfyUIMain = Join-Path $ComfyUIDir "main.py"
+    if ((Test-Path $ComfyUIMain) -and (-not (Test-Path $ComfyUIPython))) {
+        Write-Host "WARN: no python in ComfyUI venv - set COMFYOPS_COMFYUI_PYTHON" -ForegroundColor Yellow
+    }
+    if (Test-Path $ComfyUIPython) {
+        Write-Host "Starting ComfyUI on :$ComfyUIPort ..." -ForegroundColor Yellow
+        $comfyProc = Start-Process pwsh -PassThru -WindowStyle $WindowStyle -ArgumentList @(
+            "-NoProfile", "-Command", "& '$ComfyUIPython' '$ComfyUIMain' --listen 127.0.0.1 --port $ComfyUIPort"
+        )
+        $comfyOk = $false
+        for ($i = 0; $i -lt 60; $i++) {
+            try {
+                $r = Invoke-RestMethod -Uri "http://127.0.0.1:$ComfyUIPort/system_stats" -TimeoutSec 2 -ErrorAction Stop
+                if ($r.system) { $comfyOk = $true; break }
+            } catch {}
+            Start-Sleep 2
+        }
+        if ($comfyOk) { Write-Host "ComfyUI ready on :$ComfyUIPort" -ForegroundColor Green }
+        else { Write-Host "WARN: ComfyUI not confirmed after 120s." -ForegroundColor Yellow }
+    } else {
+        Write-Host "WARN: ComfyUI not found at $ComfyUIMain - set COMFYOPS_COMFYUI_DIR" -ForegroundColor Yellow
+    }
 }
 
 # --- Start backend ---

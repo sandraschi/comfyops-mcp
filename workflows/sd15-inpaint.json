@@ -1,0 +1,61 @@
+{
+  "_meta": {
+    "name": "SD 1.5 Inpaint",
+    "description": "Classic SD1.5 inpainting. Load an image, provide a mask, regenerate masked region.",
+    "model_type": "inpaint",
+    "params": {
+      "prompt": "Text description of the replacement content",
+      "seed": "Random seed for reproducibility",
+      "size": "Image size as WxH",
+      "negative_prompt": "Things to avoid",
+      "image_input": "Base64 PNG with alpha channel as mask"
+    }
+  },
+  "3": {
+    "class_type": "LoadImage",
+    "inputs": { "image": "example.png" }
+  },
+  "4": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": { "ckpt_name": "sd_v1-5.safetensors" }
+  },
+  "5": {
+    "class_type": "CLIPTextEncode",
+    "inputs": { "text": "a repaired area", "clip": ["4", 1] }
+  },
+  "6": {
+    "class_type": "CLIPTextEncode",
+    "inputs": { "text": "artifacts, blurry", "clip": ["4", 1] }
+  },
+  "7": {
+    "class_type": "VAEEncodeForInpaint",
+    "inputs": { "pixels": ["3", 0], "vae": ["4", 2], "mask": ["3", 1], "grow_mask_by": 6 }
+  },
+  "8": {
+    "class_type": "SetLatentNoiseMask",
+    "inputs": { "samples": ["7", 0], "mask": ["3", 1] }
+  },
+  "9": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": ["4", 0],
+      "seed": 42,
+      "steps": 25,
+      "cfg": 7.0,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 1.0,
+      "positive": ["5", 0],
+      "negative": ["6", 0],
+      "latent_image": ["8", 0]
+    }
+  },
+  "10": {
+    "class_type": "VAEDecode",
+    "inputs": { "samples": ["9", 0], "vae": ["4", 2] }
+  },
+  "11": {
+    "class_type": "SaveImage",
+    "inputs": { "filename_prefix": "comfyops_sd15_inpaint", "images": ["10", 0] }
+  }
+}

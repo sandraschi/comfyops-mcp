@@ -59,3 +59,69 @@ class TestHealth:
             result = await tool(operation="health")
         assert result["success"] is False
         assert result["error_type"] == "connection"
+
+
+class TestDownload:
+    async def test_requires_args(self, tool, isolated_config):
+        result = await tool(operation="download")
+        assert result["success"] is False
+        assert "requires" in result["error"]
+
+    async def test_rejects_non_allowlisted_subdir(self, tool, isolated_config):
+        result = await tool(
+            operation="download",
+            hf_repo="org/model",
+            filename="m.safetensors",
+            target="../escape",
+        )
+        assert result["success"] is False
+        assert result["error_type"] == "validation"
+
+    async def test_download_success(self, tool, isolated_config):
+        from unittest.mock import AsyncMock, patch
+
+        with patch(
+            "comfyops_mcp.tools.models_tool._download_file",
+            new=AsyncMock(
+                return_value={
+                    "ok": True,
+                    "path": "/tmp/m.safetensors",
+                    "size_bytes": 1024,
+                    "size_mb": 0.0,
+                    "sha256": "abc",
+                    "verified": True,
+                }
+            ),
+        ):
+            result = await tool(
+                operation="download",
+                hf_repo="org/model",
+                filename="m.safetensors",
+                target="diffusion_models",
+                sha256="abc",
+            )
+        assert result["success"] is True
+        assert result["download"]["verified"] is True
+
+    async def test_download_hash_mismatch(self, tool, isolated_config):
+        from unittest.mock import AsyncMock, patch
+
+        with patch(
+            "comfyops_mcp.tools.models_tool._download_file",
+            new=AsyncMock(
+                return_value={
+                    "ok": False,
+                    "error": "sha256 mismatch",
+                    "error_type": "hash",
+                }
+            ),
+        ):
+            result = await tool(
+                operation="download",
+                hf_repo="org/model",
+                filename="m.safetensors",
+                target="vae",
+                sha256="deadbeef",
+            )
+        assert result["success"] is False
+        assert result["error_type"] == "hash"

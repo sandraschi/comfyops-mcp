@@ -1,0 +1,67 @@
+{
+  "_meta": {
+    "name": "FLUX.1 Dev Text-to-Image",
+    "description": "FLUX.1 dev native loaders: UNETLoader + DualCLIPLoader + CLIPTextEncodeFlux + FluxGuidance + ModelSamplingFlux. Requires flux1-dev.safetensors + t5xxl_fp16 + clip_l + ae VAE.",
+    "model_type": "image",
+    "params": {
+      "prompt": "Text description of the image",
+      "seed": "Random seed for reproducibility",
+      "size": "Image size as WxH (e.g. 1024x1024)"
+    }
+  },
+  "10": {
+    "class_type": "UNETLoader",
+    "inputs": { "unet_name": "flux1-dev.safetensors", "weight_dtype": "default" }
+  },
+  "11": {
+    "class_type": "DualCLIPLoader",
+    "inputs": {
+      "clip_name1": "t5xxl_fp16.safetensors",
+      "clip_name2": "clip_l.safetensors",
+      "type": "flux"
+    }
+  },
+  "12": {
+    "class_type": "CLIPTextEncodeFlux",
+    "inputs": { "clip": ["11", 0], "clip_l": "a beautiful landscape", "t5xxl": "a beautiful landscape", "guidance": 3.5 }
+  },
+  "13": {
+    "class_type": "FluxGuidance",
+    "inputs": { "conditioning": ["12", 0], "guidance": 3.5 }
+  },
+  "14": {
+    "class_type": "ModelSamplingFlux",
+    "inputs": { "model": ["10", 0], "max_shift": 1.15, "base_shift": 0.5, "width": 1024, "height": 1024 }
+  },
+  "15": {
+    "class_type": "EmptySD3LatentImage",
+    "inputs": { "width": 1024, "height": 1024, "batch_size": 1 }
+  },
+  "16": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": ["14", 0],
+      "seed": 42,
+      "steps": 20,
+      "cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1.0,
+      "positive": ["13", 0],
+      "negative": ["13", 0],
+      "latent_image": ["15", 0]
+    }
+  },
+  "17": {
+    "class_type": "VAEDecode",
+    "inputs": { "samples": ["16", 0], "vae": ["18", 0] }
+  },
+  "18": {
+    "class_type": "VAELoader",
+    "inputs": { "vae_name": "ae.safetensors" }
+  },
+  "19": {
+    "class_type": "SaveImage",
+    "inputs": { "filename_prefix": "comfyops_flux_dev", "images": ["17", 0] }
+  }
+}

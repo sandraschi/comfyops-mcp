@@ -1,0 +1,68 @@
+{
+  "_meta": {
+    "name": "Hunyuan Video Text-to-Video (Tencent)",
+    "description": "Tencent HunyuanVideo T2V via EmptyHunyuanLatentVideo + DualCLIPLoader(type=hunyuan_video) + UMT5.",
+    "model_type": "video",
+    "params": {
+      "prompt": "Text description of the video",
+      "seed": "Random seed for reproducibility",
+      "size": "Video size as WxH (e.g. 848x480)",
+      "negative_prompt": "Things to avoid in the video"
+    }
+  },
+  "10": {
+    "class_type": "UNETLoader",
+    "inputs": { "unet_name": "hunyuan_video_720p_8b.safetensors", "weight_dtype": "default" }
+  },
+  "11": {
+    "class_type": "DualCLIPLoader",
+    "inputs": {
+      "clip_name1": "models_t5_umt5-xxl-enc-quanto_int8.safetensors",
+      "clip_name2": "models_t5_umt5-xxl-enc-quanto_int8.safetensors",
+      "type": "hunyuan_video"
+    }
+  },
+  "12": {
+    "class_type": "VAELoader",
+    "inputs": { "vae_name": "hunyuan_video_vae_bf16.safetensors" }
+  },
+  "13": {
+    "class_type": "CLIPTextEncode",
+    "inputs": { "text": "a cat walking through a garden", "clip": ["11", 0] }
+  },
+  "14": {
+    "class_type": "CLIPTextEncode",
+    "inputs": { "text": "blurry, low quality", "clip": ["11", 0] }
+  },
+  "15": {
+    "class_type": "EmptyHunyuanLatentVideo",
+    "inputs": { "width": 848, "height": 480, "length": 25, "batch_size": 1 }
+  },
+  "16": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": ["10", 0],
+      "seed": 42,
+      "steps": 30,
+      "cfg": 6.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1.0,
+      "positive": ["13", 0],
+      "negative": ["14", 0],
+      "latent_image": ["15", 0]
+    }
+  },
+  "17": {
+    "class_type": "VAEDecode",
+    "inputs": { "samples": ["16", 0], "vae": ["12", 0] }
+  },
+  "18": {
+    "class_type": "CreateVideo",
+    "inputs": { "images": ["17", 0], "fps": 16 }
+  },
+  "19": {
+    "class_type": "SaveVideo",
+    "inputs": { "filename_prefix": "comfyops_hunyuan_t2v", "format": "auto", "codec": "auto", "video": ["18", 0] }
+  }
+}

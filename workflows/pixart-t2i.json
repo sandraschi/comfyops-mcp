@@ -1,0 +1,55 @@
+{
+  "_meta": {
+    "name": "PixArt-Alpha Text-to-Image",
+    "description": "PixArt-Alpha T2I via CLIPTextEncodePixArtAlpha + EmptySD3LatentImage. Requires pixart_alpha.safetensors.",
+    "model_type": "image",
+    "params": {
+      "prompt": "Text description of the image",
+      "seed": "Random seed for reproducibility",
+      "size": "Image size as WxH (e.g. 1024x1024)"
+    }
+  },
+  "10": {
+    "class_type": "UNETLoader",
+    "inputs": { "unet_name": "pixart_alpha.safetensors", "weight_dtype": "default" }
+  },
+  "11": {
+    "class_type": "CLIPLoader",
+    "inputs": { "clip_name": "pixart_alpha_text_encoder.safetensors", "type": "pixart" }
+  },
+  "12": {
+    "class_type": "CLIPTextEncodePixArtAlpha",
+    "inputs": { "width": 1024, "height": 1024, "text": "a beautiful landscape", "clip": ["11", 0] }
+  },
+  "13": {
+    "class_type": "EmptySD3LatentImage",
+    "inputs": { "width": 1024, "height": 1024, "batch_size": 1 }
+  },
+  "14": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": ["10", 0],
+      "seed": 42,
+      "steps": 25,
+      "cfg": 4.5,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 1.0,
+      "positive": ["12", 0],
+      "negative": ["12", 0],
+      "latent_image": ["13", 0]
+    }
+  },
+  "15": {
+    "class_type": "VAEDecode",
+    "inputs": { "samples": ["14", 0], "vae": ["16", 0] }
+  },
+  "16": {
+    "class_type": "VAELoader",
+    "inputs": { "vae_name": "pixart_alpha_vae.safetensors" }
+  },
+  "17": {
+    "class_type": "SaveImage",
+    "inputs": { "filename_prefix": "comfyops_pixart", "images": ["15", 0] }
+  }
+}

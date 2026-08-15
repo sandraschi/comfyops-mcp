@@ -470,6 +470,7 @@ async def api_prompt_enhance(request: Request) -> JSONResponse:
             status_code=503,
         )
 
+
 async def api_nodes_status(_request: Request) -> JSONResponse:
     return JSONResponse({"success": True, **manager_status()})
 

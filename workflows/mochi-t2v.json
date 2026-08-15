@@ -1,0 +1,59 @@
+{
+  "_meta": {
+    "name": "Mochi Text-to-Video",
+    "description": "Genmo Mochi 1 preview T2V via EmptyMochiLatentVideo + CLIPLoader(type=mochi). Requires mochi_preview_6b.safetensors.",
+    "model_type": "video",
+    "params": {
+      "prompt": "Text description of the video",
+      "seed": "Random seed for reproducibility",
+      "size": "Video size as WxH (e.g. 848x480)"
+    }
+  },
+  "10": {
+    "class_type": "UNETLoader",
+    "inputs": { "unet_name": "mochi_preview_6b.safetensors", "weight_dtype": "default" }
+  },
+  "11": {
+    "class_type": "CLIPLoader",
+    "inputs": { "clip_name": "mochi_text_encoder.safetensors", "type": "mochi" }
+  },
+  "12": {
+    "class_type": "VAELoader",
+    "inputs": { "vae_name": "mochi_vae.safetensors" }
+  },
+  "13": {
+    "class_type": "CLIPTextEncode",
+    "inputs": { "text": "a cat walking through a garden", "clip": ["11", 0] }
+  },
+  "14": {
+    "class_type": "EmptyMochiLatentVideo",
+    "inputs": { "width": 848, "height": 480, "length": 25, "batch_size": 1 }
+  },
+  "15": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": ["10", 0],
+      "seed": 42,
+      "steps": 30,
+      "cfg": 4.5,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1.0,
+      "positive": ["13", 0],
+      "negative": ["13", 0],
+      "latent_image": ["14", 0]
+    }
+  },
+  "16": {
+    "class_type": "VAEDecode",
+    "inputs": { "samples": ["15", 0], "vae": ["12", 0] }
+  },
+  "17": {
+    "class_type": "CreateVideo",
+    "inputs": { "images": ["16", 0], "fps": 24 }
+  },
+  "18": {
+    "class_type": "SaveVideo",
+    "inputs": { "filename_prefix": "comfyops_mochi_t2v", "format": "auto", "codec": "auto", "video": ["17", 0] }
+  }
+}

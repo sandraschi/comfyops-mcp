@@ -1,0 +1,80 @@
+{
+  "_meta": {
+    "name": "Wan 2.1 Text-to-Video",
+    "description": "Wan 2.1 14B text-to-video with VideoLinearCFGGuidance. Runs with wan2.1_text2video_14B_quanto_int8 + UMT5 + Wan VAE (installed).",
+    "model_type": "video",
+    "params": {
+      "prompt": "Text description of the video",
+      "seed": "Random seed for reproducibility",
+      "size": "Video size as WxH (e.g. 832x480)",
+      "negative_prompt": "Things to avoid in the video"
+    }
+  },
+  "10": {
+    "class_type": "UNETLoader",
+    "inputs": { "unet_name": "wan2.1_text2video_14B_quanto_int8.safetensors", "weight_dtype": "default" }
+  },
+  "11": {
+    "class_type": "DualCLIPLoader",
+    "inputs": {
+      "clip_name1": "models_t5_umt5-xxl-enc-quanto_int8.safetensors",
+      "clip_name2": "models_t5_umt5-xxl-enc-quanto_int8.safetensors",
+      "type": "wan"
+    }
+  },
+  "12": {
+    "class_type": "VAELoader",
+    "inputs": { "vae_name": "Wan2.1_VAE_bf16.safetensors" }
+  },
+  "13": {
+    "class_type": "CLIPTextEncode",
+    "inputs": { "text": "a cat walking through a garden", "clip": ["11", 0] }
+  },
+  "14": {
+    "class_type": "CLIPTextEncode",
+    "inputs": { "text": "blurry, low quality", "clip": ["11", 0] }
+  },
+  "15": {
+    "class_type": "VideoLinearCFGGuidance",
+    "inputs": { "model": ["10", 0], "min_cfg": 1.0 }
+  },
+  "16": {
+    "class_type": "WanImageToVideo",
+    "inputs": {
+      "positive": ["13", 0],
+      "negative": ["14", 0],
+      "vae": ["12", 0],
+      "width": 832,
+      "height": 480,
+      "length": 81,
+      "batch_size": 1
+    }
+  },
+  "17": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": ["15", 0],
+      "seed": 42,
+      "steps": 20,
+      "cfg": 4.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1.0,
+      "positive": ["16", 0],
+      "negative": ["16", 1],
+      "latent_image": ["16", 2]
+    }
+  },
+  "18": {
+    "class_type": "VAEDecode",
+    "inputs": { "samples": ["17", 0], "vae": ["12", 0] }
+  },
+  "19": {
+    "class_type": "CreateVideo",
+    "inputs": { "images": ["18", 0], "fps": 16 }
+  },
+  "20": {
+    "class_type": "SaveVideo",
+    "inputs": { "filename_prefix": "comfyops_wan21_t2v", "format": "auto", "codec": "auto", "video": ["19", 0] }
+  }
+}

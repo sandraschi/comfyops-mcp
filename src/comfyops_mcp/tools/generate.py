@@ -92,6 +92,14 @@ def register_tools(mcp: FastMCP):
                 "suggestions": boot.get("suggestions", ["Set COMFYOPS_COMFYUI_DIR."]),
             }
 
+        wf_path = Path(_cfg.WORKFLOWS_DIR) / f"{workflow_id}.json"
+        if not wf_path.exists():
+            return {
+                "success": False,
+                "error": f"Workflow '{workflow_id}' not found.",
+                "suggestions": ["Use comfy_workflows/list to see available workflows."],
+            }
+
         model_vram = _MODEL_VRAM_MAP.get(workflow_id, 6.0)
         vram = await check_vram(model_vram)
         if not vram["ok"]:
@@ -100,14 +108,6 @@ def register_tools(mcp: FastMCP):
                 "error": vram["error"],
                 "error_type": "vram",
                 "suggestions": ["Close other GPU apps (LM Studio, Ollama).", "Try a smaller model workflow."],
-            }
-
-        wf_path = Path(_cfg.WORKFLOWS_DIR) / f"{workflow_id}.json"
-        if not wf_path.exists():
-            return {
-                "success": False,
-                "error": f"Workflow '{workflow_id}' not found.",
-                "suggestions": ["Use comfy_workflows/list to see available workflows."],
             }
 
         workflow = json.loads(wf_path.read_text(encoding="utf-8"))
@@ -171,7 +171,12 @@ def _apply_params(workflow, prompt, seed, size, negative_prompt, image_input):
             continue
         cls = node.get("class_type", "")
         inputs = node.get("inputs", {})
-        if cls in ("CLIPTextEncode", "CLIPTextEncodeFlux", "TextEncodeQwenImageEdit", "TextEncodeHunyuanVideo_ImageToVideo"):
+        if cls in (
+            "CLIPTextEncode",
+            "CLIPTextEncodeFlux",
+            "TextEncodeQwenImageEdit",
+            "TextEncodeHunyuanVideo_ImageToVideo",
+        ):
             if "text" in inputs or "clip_l" in inputs or "prompt" in inputs or "t5xxl" in inputs:
                 clip_encountered += 1
                 text = prompt if clip_encountered == 1 else (negative_prompt or "")
@@ -204,24 +209,31 @@ def _apply_params(workflow, prompt, seed, size, negative_prompt, image_input):
         elif cls in ("KSampler", "SamplerCustom") or (cls == "FluxEraseNode" and "seed" in inputs):
             if "seed" in inputs:
                 inputs["seed"] = seed
-        elif cls in (
-            "EmptyLatentImage",
-            "EmptySD3LatentImage",
-            "EmptyFlux2LatentImage",
-            "EmptyHunyuanImageLatent",
-            "EmptyHunyuanLatentVideo",
-            "EmptyHunyuanVideo15Latent",
-            "EmptyLTXVLatentVideo",
-            "EmptyCosmosLatentVideo",
-            "EmptyMochiLatentVideo",
-            "EmptyHiDreamO1LatentImage",
-            "EmptyQwenImageLayeredLatentImage",
-        ) and size:
+        elif (
+            cls
+            in (
+                "EmptyLatentImage",
+                "EmptySD3LatentImage",
+                "EmptyFlux2LatentImage",
+                "EmptyHunyuanImageLatent",
+                "EmptyHunyuanLatentVideo",
+                "EmptyHunyuanVideo15Latent",
+                "EmptyLTXVLatentVideo",
+                "EmptyCosmosLatentVideo",
+                "EmptyMochiLatentVideo",
+                "EmptyHiDreamO1LatentImage",
+                "EmptyQwenImageLayeredLatentImage",
+            )
+            and size
+        ):
             parts = size.split("x")
             if len(parts) == 2:
                 inputs["width"] = int(parts[0])
                 inputs["height"] = int(parts[1])
-        elif cls in ("WanImageToVideo", "Wan22ImageToVideoLatent", "HunyuanVideo15ImageToVideo", "HunyuanImageToVideo") and size:
+        elif (
+            cls in ("WanImageToVideo", "Wan22ImageToVideoLatent", "HunyuanVideo15ImageToVideo", "HunyuanImageToVideo")
+            and size
+        ):
             parts = size.split("x")
             if len(parts) == 2:
                 inputs["width"] = int(parts[0])

@@ -1,0 +1,72 @@
+{
+  "_meta": {
+    "name": "SDXL Text-to-Image",
+    "description": "SDXL text-to-image with dual text encoders (text_g + text_l).",
+    "model_type": "image",
+    "params": {
+      "prompt": "Text description of the image",
+      "seed": "Random seed for reproducibility",
+      "size": "Image size as WxH (e.g. 1024x1024)",
+      "negative_prompt": "Things to avoid in the image"
+    }
+  },
+  "3": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": { "ckpt_name": "sdxl_base_1.0.safetensors" }
+  },
+  "4": {
+    "class_type": "CLIPTextEncodeSDXL",
+    "inputs": {
+      "clip": ["3", 1],
+      "width": 1024,
+      "height": 1024,
+      "crop_w": 0,
+      "crop_h": 0,
+      "target_width": 1024,
+      "target_height": 1024,
+      "text_g": "a beautiful landscape, masterpiece",
+      "text_l": "a beautiful landscape"
+    }
+  },
+  "5": {
+    "class_type": "CLIPTextEncodeSDXL",
+    "inputs": {
+      "clip": ["3", 1],
+      "width": 1024,
+      "height": 1024,
+      "crop_w": 0,
+      "crop_h": 0,
+      "target_width": 1024,
+      "target_height": 1024,
+      "text_g": "blurry, low quality",
+      "text_l": "blurry"
+    }
+  },
+  "6": {
+    "class_type": "EmptyLatentImage",
+    "inputs": { "width": 1024, "height": 1024, "batch_size": 1 }
+  },
+  "7": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": ["3", 0],
+      "seed": 42,
+      "steps": 25,
+      "cfg": 7.0,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 1.0,
+      "positive": ["4", 0],
+      "negative": ["5", 0],
+      "latent_image": ["6", 0]
+    }
+  },
+  "8": {
+    "class_type": "VAEDecode",
+    "inputs": { "samples": ["7", 0], "vae": ["3", 2] }
+  },
+  "9": {
+    "class_type": "SaveImage",
+    "inputs": { "filename_prefix": "comfyops_sdxl", "images": ["8", 0] }
+  }
+}

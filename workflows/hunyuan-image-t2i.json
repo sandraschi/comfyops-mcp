@@ -1,0 +1,59 @@
+{
+  "_meta": {
+    "name": "Hunyuan Image Text-to-Image (Tencent)",
+    "description": "Tencent Hunyuan Image via DualCLIPLoader(type=hunyuan_image) + CLIPTextEncodeHunyuanDiT (BERT + mT5-XL). 1.5/2.0 checkpoints supported.",
+    "model_type": "image",
+    "params": {
+      "prompt": "Text description of the image",
+      "seed": "Random seed for reproducibility",
+      "size": "Image size as WxH (e.g. 1024x1024)"
+    }
+  },
+  "10": {
+    "class_type": "UNETLoader",
+    "inputs": { "unet_name": "hunyuan_image_1.5.safetensors", "weight_dtype": "default" }
+  },
+  "11": {
+    "class_type": "DualCLIPLoader",
+    "inputs": {
+      "clip_name1": "hunyuan_image_clip_vit_l_14.safetensors",
+      "clip_name2": "mT5_xl.safetensors",
+      "type": "hunyuan_image"
+    }
+  },
+  "12": {
+    "class_type": "CLIPTextEncodeHunyuanDiT",
+    "inputs": { "clip": ["11", 0], "bert": "a beautiful landscape", "mt5xl": "a beautiful landscape" }
+  },
+  "13": {
+    "class_type": "EmptyHunyuanImageLatent",
+    "inputs": { "width": 1024, "height": 1024, "batch_size": 1 }
+  },
+  "14": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": ["10", 0],
+      "seed": 42,
+      "steps": 22,
+      "cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1.0,
+      "positive": ["12", 0],
+      "negative": ["12", 0],
+      "latent_image": ["13", 0]
+    }
+  },
+  "15": {
+    "class_type": "VAEDecode",
+    "inputs": { "samples": ["14", 0], "vae": ["16", 0] }
+  },
+  "16": {
+    "class_type": "VAELoader",
+    "inputs": { "vae_name": "hunyuan_image_vae.safetensors" }
+  },
+  "17": {
+    "class_type": "SaveImage",
+    "inputs": { "filename_prefix": "comfyops_hunyuan_image", "images": ["15", 0] }
+  }
+}

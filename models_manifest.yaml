@@ -1,0 +1,40 @@
+# comfyops-mcp model manifest
+# Installed models (verified on disk). Download candidates list HF repo ids;
+# hashes must be filled before the download op can verify them.
+#
+# Licenses: FLUX.2 [dev] is non-commercial; klein/schnell/Wan/Z-Image Apache 2.0.
+
+installed:
+  - name: wan2.1_text2video_14B_quanto_int8.safetensors
+    subdir: diffusion_models
+    size_gb: 13.5
+    note: Wan 2.1 text2video 14B (Pinokio reuse, 2026-07-14)
+  - name: sd_v1-5.safetensors
+    subdir: checkpoints
+    size_gb: 4.3
+    note: SD 1.5 baseline checkpoint
+
+candidates:
+  - name: flux-klein-t2i
+    hf_repo: black-forest-labs/FLUX.1-klein-dev
+    filename: flux1-klein-dev.safetensors
+    subdir: diffusion_models
+    sha256: null
+    license: Apache-2.0
+    note: acceptance test workflow - fill sha256 before download
+  - name: flux-schnell-t2i
+    hf_repo: black-forest-labs/FLUX.1-schnell
+    filename: flux1-schnell.safetensors
+    subdir: diffusion_models
+    sha256: null
+    license: Apache-2.0
+  - name: esrgan-upscale
+    hf_repo: lllyasviel/Annotators
+    filename: RealESRGAN_x4plus.pth
+    subdir: upscale_models
+    sha256: null
+    license: BSD-3-Clause
+
+# Verify quants + hashes at download time (brief: "verify current quants at
+# build time via web search"). The download op refuses nothing, but reports
+# sha256 verification state honestly.

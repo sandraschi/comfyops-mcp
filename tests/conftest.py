@@ -125,7 +125,7 @@ def mock_comfy_client():
             {
                 "system": {
                     "comfyui_version": "0.3.0",
-                    "devices": [{"name": "NVIDIA RTX 4090"}],
+                    "devices": [{"name": "NVIDIA RTX 4090", "vram_total": 24 * 1024**3, "vram_free": 8 * 1024**3}],
                     "memory": {"free": 8 * 1024**3, "total": 24 * 1024**3},
                 }
             },

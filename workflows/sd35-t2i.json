@@ -1,0 +1,70 @@
+{
+  "_meta": {
+    "name": "SD 3.5 Text-to-Image",
+    "description": "Stability SD 3.5 via CLIPTextEncodeSD3 (clip_l + clip_g + t5xxl) + ModelSamplingSD3. Requires sd3.5_large.safetensors.",
+    "model_type": "image",
+    "params": {
+      "prompt": "Text description of the image",
+      "seed": "Random seed for reproducibility",
+      "size": "Image size as WxH (e.g. 1024x1024)",
+      "negative_prompt": "Things to avoid in the image"
+    }
+  },
+  "10": {
+    "class_type": "UNETLoader",
+    "inputs": { "unet_name": "sd3.5_large.safetensors", "weight_dtype": "default" }
+  },
+  "11": {
+    "class_type": "DualCLIPLoader",
+    "inputs": {
+      "clip_name1": "clip_g.safetensors",
+      "clip_name2": "t5xxl_fp8.safetensors",
+      "type": "sd3"
+    }
+  },
+  "12": {
+    "class_type": "CLIPTextEncodeSD3",
+    "inputs": {
+      "clip": ["11", 0],
+      "clip_l": "a beautiful landscape",
+      "clip_g": "a beautiful landscape",
+      "t5xxl": "a beautiful landscape",
+      "empty_padding": "empty_prompt"
+    }
+  },
+  "13": {
+    "class_type": "ModelSamplingSD3",
+    "inputs": { "model": ["10", 0], "shift": 3.0 }
+  },
+  "14": {
+    "class_type": "EmptySD3LatentImage",
+    "inputs": { "width": 1024, "height": 1024, "batch_size": 1 }
+  },
+  "15": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": ["13", 0],
+      "seed": 42,
+      "steps": 30,
+      "cfg": 4.5,
+      "sampler_name": "euler",
+      "scheduler": "sgm_uniform",
+      "denoise": 1.0,
+      "positive": ["12", 0],
+      "negative": ["12", 0],
+      "latent_image": ["14", 0]
+    }
+  },
+  "16": {
+    "class_type": "VAEDecode",
+    "inputs": { "samples": ["15", 0], "vae": ["17", 0] }
+  },
+  "17": {
+    "class_type": "VAELoader",
+    "inputs": { "vae_name": "sd3.5_vae.safetensors" }
+  },
+  "18": {
+    "class_type": "SaveImage",
+    "inputs": { "filename_prefix": "comfyops_sd35", "images": ["16", 0] }
+  }
+}

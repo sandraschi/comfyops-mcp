@@ -1,0 +1,76 @@
+{
+  "_meta": {
+    "name": "SUPIR Photo Restoration",
+    "description": "SUPIR v2 upscale/restore via SUPIRApply + ModelPatchLoader. Requires SDXL base + SUPIR patch in models. ~8 GB VRAM.",
+    "model_type": "upscale",
+    "params": {
+      "prompt": "Optional restoration prompt (leave empty for pure restore)",
+      "seed": "Random seed for reproducibility",
+      "image_input": "Base64 PNG image to restore"
+    }
+  },
+  "3": {
+    "class_type": "LoadImage",
+    "inputs": { "image": "example.png" }
+  },
+  "4": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": { "ckpt_name": "sd_xl_base_1.0.safetensors" }
+  },
+  "5": {
+    "class_type": "ModelPatchLoader",
+    "inputs": { "name": "SUPIR_v2.0.ckpt" }
+  },
+  "6": {
+    "class_type": "VAELoader",
+    "inputs": { "vae_name": "sdxl_vae.safetensors" }
+  },
+  "7": {
+    "class_type": "SUPIRApply",
+    "inputs": {
+      "model": ["4", 0],
+      "model_patch": ["5", 0],
+      "vae": ["6", 0],
+      "image": ["3", 0],
+      "strength_start": 1.0,
+      "strength_end": 1.0,
+      "restore_cfg": 4.0,
+      "restore_cfg_s_tmin": 0.05
+    }
+  },
+  "7b": {
+    "class_type": "VAEEncode",
+    "inputs": { "pixels": ["3", 0], "vae": ["6", 0] }
+  },
+  "8": {
+    "class_type": "CLIPTextEncode",
+    "inputs": { "text": "high quality, sharp, detailed", "clip": ["4", 1] }
+  },
+  "9": {
+    "class_type": "CLIPTextEncode",
+    "inputs": { "text": "blurry, low quality, artifacts", "clip": ["4", 1] }
+  },
+  "10": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": ["7", 0],
+      "seed": 42,
+      "steps": 30,
+      "cfg": 1.0,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 1.0,
+      "positive": ["8", 0],
+      "negative": ["9", 0],
+      "latent_image": ["7b", 0]
+    }
+  },
+  "11": {
+    "class_type": "VAEDecode",
+    "inputs": { "samples": ["10", 0], "vae": ["6", 0] }
+  },
+  "12": {
+    "class_type": "SaveImage",
+    "inputs": { "filename_prefix": "comfyops_supir", "images": ["11", 0] }
+  }
+}

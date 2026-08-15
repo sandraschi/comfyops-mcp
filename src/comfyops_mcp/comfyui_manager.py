@@ -4,7 +4,6 @@ import asyncio
 import json
 import logging
 import subprocess
-import sys
 import time
 from pathlib import Path
 
@@ -251,8 +250,16 @@ def start_sidecar() -> subprocess.Popen | None:
     if _comfyui_proc and _comfyui_proc.poll() is None:
         logger.info("ComfyUI already running")
         return _comfyui_proc
+    # ComfyUI must run with its own venv python (has torch) - never sys.executable
+    # (that is comfyops' venv, which has no torch).
+    python = _cfg.COMFYUI_PYTHON or str(Path(_cfg.COMFYUI_DIR) / ".venv" / "Scripts" / "python.exe")
+    if not Path(python).exists():
+        python = str(Path(_cfg.COMFYUI_DIR) / "venv" / "Scripts" / "python.exe")
+    if not Path(python).exists():
+        logger.warning("No python found for ComfyUI - set COMFYOPS_COMFYUI_PYTHON")
+        return None
     proc = subprocess.Popen(
-        [sys.executable, "-m", "main", "--listen", _cfg.COMFYUI_HOST, "--port", str(_cfg.COMFYUI_PORT)],
+        [python, "-m", "main", "--listen", _cfg.COMFYUI_HOST, "--port", str(_cfg.COMFYUI_PORT)],
         cwd=_cfg.COMFYUI_DIR,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,

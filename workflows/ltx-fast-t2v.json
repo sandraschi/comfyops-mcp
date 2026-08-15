@@ -1,0 +1,83 @@
+{
+  "_meta": {
+    "name": "LTX-Video Fast Text-to-Video",
+    "description": "Lightricks LTX-Video fast T2V. LTXVConditioning + LTXVScheduler sigmas + ModelSamplingLTXV. ~8 GB VRAM.",
+    "model_type": "video",
+    "params": {
+      "prompt": "Text description of the video",
+      "seed": "Random seed for reproducibility",
+      "size": "Video size as WxH (e.g. 768x512)",
+      "negative_prompt": "Things to avoid in the video"
+    }
+  },
+  "10": {
+    "class_type": "UNETLoader",
+    "inputs": { "unet_name": "ltxv_2b.safetensors", "weight_dtype": "default" }
+  },
+  "11": {
+    "class_type": "CLIPLoader",
+    "inputs": { "clip_name": "ltxv_text_encoder.safetensors", "type": "ltxv" }
+  },
+  "12": {
+    "class_type": "VAELoader",
+    "inputs": { "vae_name": "ltxv_vae.safetensors" }
+  },
+  "13": {
+    "class_type": "CLIPTextEncode",
+    "inputs": { "text": "a cat walking through a garden", "clip": ["11", 0] }
+  },
+  "14": {
+    "class_type": "CLIPTextEncode",
+    "inputs": { "text": "blurry, low quality", "clip": ["11", 0] }
+  },
+  "15": {
+    "class_type": "LTXVConditioning",
+    "inputs": { "positive": ["13", 0], "negative": ["14", 0], "frame_rate": 25.0 }
+  },
+  "16": {
+    "class_type": "ModelSamplingLTXV",
+    "inputs": { "model": ["10", 0], "max_shift": 2.05, "base_shift": 0.95 }
+  },
+  "17": {
+    "class_type": "LTXVScheduler",
+    "inputs": { "steps": 20, "max_shift": 2.05, "base_shift": 0.95, "stretch": true, "terminal": 0.1 }
+  },
+  "18": {
+    "class_type": "EmptyLTXVLatentVideo",
+    "inputs": { "width": 768, "height": 512, "length": 97, "batch_size": 1 }
+  },
+  "19": {
+    "class_type": "KSamplerSelect",
+    "inputs": { "sampler_name": "dpmpp_2m" }
+  },
+  "20": {
+    "class_type": "RandomNoise",
+    "inputs": { "noise_seed": 42 }
+  },
+  "21": {
+    "class_type": "BasicGuider",
+    "inputs": { "model": ["16", 0], "conditioning": ["15", 0] }
+  },
+  "22": {
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "noise": ["20", 0],
+      "guider": ["21", 0],
+      "sampler": ["19", 0],
+      "sigmas": ["17", 0],
+      "latent_image": ["18", 0]
+    }
+  },
+  "23": {
+    "class_type": "VAEDecode",
+    "inputs": { "samples": ["22", 0], "vae": ["12", 0] }
+  },
+  "24": {
+    "class_type": "CreateVideo",
+    "inputs": { "images": ["23", 0], "fps": 25 }
+  },
+  "25": {
+    "class_type": "SaveVideo",
+    "inputs": { "filename_prefix": "comfyops_ltx_t2v", "format": "auto", "codec": "auto", "video": ["24", 0] }
+  }
+}

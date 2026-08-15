@@ -1,0 +1,55 @@
+{
+  "_meta": {
+    "name": "Qwen-Image Text-to-Image (Alibaba)",
+    "description": "Alibaba Qwen-Image T2I via CLIPLoader(type=qwen_image) + TextEncodeQwenImageEdit + layered latent (layers=0 = flat output).",
+    "model_type": "image",
+    "params": {
+      "prompt": "Text description of the image",
+      "seed": "Random seed for reproducibility",
+      "size": "Image size as WxH (e.g. 1024x1024)"
+    }
+  },
+  "10": {
+    "class_type": "UNETLoader",
+    "inputs": { "unet_name": "qwen_image_7b.safetensors", "weight_dtype": "default" }
+  },
+  "11": {
+    "class_type": "CLIPLoader",
+    "inputs": { "clip_name": "qwen_2.5_vl_7b.safetensors", "type": "qwen_image" }
+  },
+  "12": {
+    "class_type": "TextEncodeQwenImageEdit",
+    "inputs": { "clip": ["11", 0], "prompt": "a beautiful landscape" }
+  },
+  "13": {
+    "class_type": "EmptyQwenImageLayeredLatentImage",
+    "inputs": { "width": 1024, "height": 1024, "layers": 0, "batch_size": 1 }
+  },
+  "14": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": ["10", 0],
+      "seed": 42,
+      "steps": 30,
+      "cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1.0,
+      "positive": ["12", 0],
+      "negative": ["12", 0],
+      "latent_image": ["13", 0]
+    }
+  },
+  "15": {
+    "class_type": "VAEDecode",
+    "inputs": { "samples": ["14", 0], "vae": ["16", 0] }
+  },
+  "16": {
+    "class_type": "VAELoader",
+    "inputs": { "vae_name": "qwen_image_vae.safetensors" }
+  },
+  "17": {
+    "class_type": "SaveImage",
+    "inputs": { "filename_prefix": "comfyops_qwen_image", "images": ["15", 0] }
+  }
+}
