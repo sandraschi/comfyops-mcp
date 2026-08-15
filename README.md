@@ -2,7 +2,7 @@
 
 Wraps ComfyUI so you can generate images, video, and upscales from a prompt — without ever touching the node editor. Pick a curated workflow, type what you want, get a PNG or MP4.
 
-**FastMCP 3.4+** | 5 portmanteau tools | 6 curated workflows | ComfyUI :11086 | Backend :11087 | Dashboard :11088
+**FastMCP 3.4+** | 5 portmanteau tools | 27 curated workflows | ComfyUI :11086 | Backend :11087 | Dashboard :11088
 
 <p align="center">
   <img src="https://img.shields.io/badge/FastMCP-3.4+-7c5cfc?style=flat-square" alt="FastMCP">
@@ -18,10 +18,10 @@ Wraps ComfyUI so you can generate images, video, and upscales from a prompt — 
 **What's this?** comfyops-mcp is a butler for ComfyUI. You tell it what you want — "a cat surfing on a pizza slice" — and it picks the right boxes, wires them up, and hands you the result. No node editor, no patch cables, no "what's a CFG scale?"
 
 **What can it do?**
-- Turn text into images (FLUX.2, SDXL)
-- Turn text or photos into short videos (Wan 2.2)
-- Upscale old low-res images to 4K (ESRGAN)
-- Inpaint: replace parts of an image ("make that car red")
+- Turn text into images — **verified**: FLUX.2 klein 4B (seed-reproducible) and SD 1.5; curated: SDXL, FLUX.1 family, Z-Image, PixArt, Lumina2
+- Turn text or photos into short videos — curated (Wan 2.1/2.2, Hunyuan, LTX, Mochi, Cosmos) — not yet end-to-end verified
+- Upscale / restore old images — curated (ESRGAN, SUPIR) — not yet end-to-end verified
+- Inpaint and edit (SD1.5 inpaint/img2img; FLUX fill curated)
 - Browse and catalog workflows from the community
 - Remember every generation with its seed so you can reproduce it later
 
@@ -65,13 +65,12 @@ See [docs/ONBOARDING.md](docs/ONBOARDING.md) for first-run (ComfyUI + models), a
 
 ## Features
 
-- **Prompt-to-image**: FLUX.2 klein, SDXL, Z-Image Turbo — curated workflows with sensible defaults
-- **Prompt-to-video**: Wan 2.2 (quality) and LTX-Video (speed)
-- **Upscale & restore**: ESRGAN and SUPIR for archive restoration
-- **Inpaint & edit**: Region-based editing via FLUX.2
-- **VRAM guard**: Checks free GPU memory before queueing — no OOM crashes
-- **Seed control**: Same seed + same workflow = identical output, every time
-- **Generation library**: SQLite history with search — browse past prompts and seeds
+- **Prompt-to-image — verified**: FLUX.2 klein 4B fp8 (official ComfyUI wiring, ~1-2 min per 1024x1024 on a 4090, seed-reproducible) and SD 1.5
+- **Prompt-to-video / upscale / inpaint**: curated workflows (Wan 2.1/2.2, Hunyuan, LTX, Mochi, ESRGAN, SUPIR) — pending end-to-end verification
+- **Model downloads**: `comfy_models/download` streams from Hugging Face with optional sha256 verification and Bearer auth for gated repos
+- **VRAM guard**: Checks free GPU memory before queueing — no OOM crashes; models are unloaded after each run so the reading stays honest
+- **Seed control**: Same seed + same workflow = identical output, every time (verified)
+- **Generation library & gallery**: SQLite history with sorting, filters, batch delete/export (CSV/JSON), and crossconnects (same workflow/model)
 - **Agentic workflow**: Multi-step generation planning via MCP sampling (SEP-1577)
 - **Prefab cards**: Rich in-chat status and generation cards
 
@@ -85,15 +84,16 @@ See [docs/ONBOARDING.md](docs/ONBOARDING.md) for first-run (ComfyUI + models), a
 
 ## Workflow Depot
 
-comfyops ships with 6 curated workflows, but the community has thousands. Use `comfy_workflows/discover` to pull from community sources, or `comfy_workflows/register` to add your own exports from the ComfyUI node editor. The webapp has a full recipe browser with tags, metadata, and search.
+comfyops ships with 27 curated workflows (t2i, i2v, t2v, inpaint, edit, upscale, restore).
+Use `comfy_workflows/register` to add your own exports from the ComfyUI node editor.
 
 ## Tools
 
 | Tool | Ops |
 |------|-----|
 | `comfy_generate` | image, video, upscale, inpaint, edit |
-| `comfy_workflows` | list, get, validate, register, search, discover |
-| `comfy_models` | list_installed, check_vram, health |
+| `comfy_workflows` | list, get, validate, register |
+| `comfy_models` | list_installed, download, check_vram, health |
 | `comfy_library` | recent, search, record |
 | `comfy_agentic_assist` | Multi-step via MCP sampling |
 

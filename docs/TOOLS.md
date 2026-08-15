@@ -45,9 +45,9 @@ Manage the curated workflow depot and discover community sources.
 
 ## comfy_models
 
-Manage models and check GPU status.
+Manage local models, download from Hugging Face (hash-verified), and check GPU status.
 
-**Operations:** list_installed, check_vram, health
+**Operations:** list_installed, download, check_vram, health
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -83,3 +83,4 @@ Requires a host with MCP sampling. Falls back to structured manual sequence when
 |------|-------------|
 | `show_comfyops_status_card` | Live ComfyUI health, VRAM, workflow count, model count |
 | `show_generation_card` | Single generation result with prompt, seed, outputs |
+
