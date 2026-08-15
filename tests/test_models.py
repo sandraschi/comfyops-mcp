@@ -134,13 +134,14 @@ class TestDownload:
         async def fake_download(url, dest, sha256=None, headers=None):
             sent["url"] = url
             sent["headers"] = headers
-            return {"ok": True, "path": str(dest), "size_bytes": 1, "size_mb": 0.0,
-                    "sha256": "x", "verified": True}
+            return {"ok": True, "path": str(dest), "size_bytes": 1, "size_mb": 0.0, "sha256": "x", "verified": True}
 
         with patch("comfyops_mcp.tools.models_tool._cfg.HF_TOKEN", "hf_test_token"):
             with patch("comfyops_mcp.tools.models_tool._download_file", new=fake_download):
                 result = await tool(
-                    operation="download", hf_repo="org/model", filename="m.safetensors",
+                    operation="download",
+                    hf_repo="org/model",
+                    filename="m.safetensors",
                     target="checkpoints",
                 )
         assert result["success"] is True
