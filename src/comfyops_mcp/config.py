@@ -16,6 +16,7 @@ WORKFLOWS_DIR = os.environ.get(
 MAX_QUEUE_SIZE = int(os.environ.get("COMFYOPS_MAX_QUEUE", "5"))
 GENERATION_TIMEOUT = int(os.environ.get("COMFYOPS_TIMEOUT", "300"))
 COMFYUI_PYTHON = os.environ.get("COMFYOPS_COMFYUI_PYTHON", "")
+HF_TOKEN = os.environ.get("COMFYOPS_HF_TOKEN", os.environ.get("HF_TOKEN", ""))
 AUTO_INSTALL_NODES = os.environ.get("COMFYOPS_AUTO_INSTALL_NODES", "1") not in ("0", "false", "False", "no")
 MANAGER_BOOTSTRAP = os.environ.get("COMFYOPS_MANAGER_BOOTSTRAP", "1") not in ("0", "false", "False", "no")
 MANAGER_INSTALL_TIMEOUT = int(os.environ.get("COMFYOPS_MANAGER_INSTALL_TIMEOUT", "600"))

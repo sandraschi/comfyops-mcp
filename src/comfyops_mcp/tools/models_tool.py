@@ -29,7 +29,7 @@ _ALLOWED_SUBDIRS = {
 _HF_BASE = "https://huggingface.co"
 
 
-async def _download_file(url: str, dest: Path, sha256: str | None = None) -> dict:
+async def _download_file(url: str, dest: Path, sha256: str | None = None, headers: dict | None = None) -> dict:
     """Stream a file from a URL, optionally verifying sha256. Returns metadata."""
     import httpx
 
@@ -38,7 +38,7 @@ async def _download_file(url: str, dest: Path, sha256: str | None = None) -> dic
     digest = hashlib.sha256()
     total = 0
     async with httpx.AsyncClient(timeout=60, follow_redirects=True) as client:
-        async with client.stream("GET", url) as r:
+        async with client.stream("GET", url, headers=headers or {}) as r:
             r.raise_for_status()
             with open(tmp, "wb") as f:
                 async for chunk in r.aiter_bytes():
@@ -121,8 +121,11 @@ def register_tools(mcp: FastMCP):
                 }
             dest = Path(_cfg.MODELS_DIR) / subdir / filename
             url = f"{_HF_BASE}/{hf_repo}/resolve/main/{filename}"
+            headers = {}
+            if _cfg.HF_TOKEN:
+                headers["Authorization"] = f"Bearer {_cfg.HF_TOKEN}"
             try:
-                dl = await _download_file(url, dest, sha256)
+                dl = await _download_file(url, dest, sha256, headers)
             except Exception as exc:
                 return {"success": False, "error": str(exc), "error_type": type(exc).__name__}
             if not dl.get("ok"):
