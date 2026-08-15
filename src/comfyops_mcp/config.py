@@ -1,4 +1,10 @@
 import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+# One source of truth: repo-root .env (never a fallback chain).
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 COMFYUI_HOST = os.environ.get("COMFYOPS_COMFYUI_HOST", "127.0.0.1")
 COMFYUI_PORT = int(os.environ.get("COMFYOPS_COMFYUI_PORT", "11086"))
