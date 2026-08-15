@@ -27,7 +27,6 @@ _MODEL_VRAM_MAP = {
     "flux2-klein-t2i": 8.0,
     "flux-dev-t2i": 12.0,
     "flux-schnell-t2i": 12.0,
-    "flux2-t2i": 10.0,
     "qwen-t2i-text": 8.0,
     "zimage-fast": 5.0,
     "sdxl-lora-t2i": 5.5,

@@ -32,7 +32,13 @@ installed:
     subdir: text_encoders
     size_gb: 4.7
     sha256: 7d330da4816157540d6bb7838bf63a0f02f573fc48ca4d8de34bb0cbfd514f09
-    note: standard flux T5 (unused by klein; for FLUX.1 workflows)
+    note: standard flux T5 (FLUX.1 workflows)
+
+removed:
+  - name: mistral_3_small_flux2_fp8.safetensors
+    size_gb: 16.8
+    reason: FLUX.2-dev 9B text encoder - 16.8GB for a static-PNG path that was never
+      verified; klein uses qwen_3_4b (7.5GB). Deleted 2026-08-15.
 
 candidates:
   - name: flux-klein-t2i
