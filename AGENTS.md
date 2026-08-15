@@ -31,7 +31,7 @@
 |------|-----|-------|
 | comfy_generate | image, video, upscale, inpaint, edit | Submits workflow JSON, polls result |
 | comfy_workflows | list, get, validate, register | Curated workflow depot |
-| comfy_models | list_installed, check_vram, health | VRAM check before queueing |
+| comfy_models | list_installed, download, check_vram, health | download = HF streaming, sha256 verify, Bearer auth (COMFYOPS_HF_TOKEN) |
 | comfy_library | recent, search, record | SQLite generation history |
 | comfy_agentic_assist | — | SEP-1577 sampling for multi-step gen |
 
