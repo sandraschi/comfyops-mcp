@@ -146,3 +146,23 @@ class TestDownload:
                 )
         assert result["success"] is True
         assert sent["headers"] == {"Authorization": "Bearer hf_test_token"}
+
+    async def test_download_dest_name(self, tool, isolated_config):
+        from unittest.mock import patch
+
+        seen = {}
+
+        async def fake_download(url, dest, sha256=None, headers=None):
+            seen["dest"] = str(dest)
+            return {"ok": True, "path": str(dest), "size_bytes": 1, "size_mb": 0.0, "sha256": "x", "verified": False}
+
+        with patch("comfyops_mcp.tools.models_tool._download_file", new=fake_download):
+            result = await tool(
+                operation="download",
+                hf_repo="org/model",
+                filename="ae.safetensors",
+                target="vae",
+                dest_name="flux2_ae.safetensors",
+            )
+        assert result["success"] is True
+        assert seen["dest"].endswith("flux2_ae.safetensors")

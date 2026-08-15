@@ -79,6 +79,7 @@ def register_tools(mcp: FastMCP):
             str | None,
             "ComfyUI model subdir (checkpoints, diffusion_models, loras, text_encoders, vae, upscale_models).",
         ] = None,
+        dest_name: Annotated[str | None, "Optional destination filename (defaults to filename)."] = None,
         sha256: Annotated[str | None, "Expected sha256 of the file (verified when provided)."] = None,
     ) -> dict:
         """Manage local models, download from Hugging Face (hash-verified), and check GPU VRAM.
@@ -119,7 +120,7 @@ def register_tools(mcp: FastMCP):
                     "error_type": "validation",
                     "allowed_targets": sorted(_ALLOWED_SUBDIRS),
                 }
-            dest = Path(_cfg.MODELS_DIR) / subdir / filename
+            dest = Path(_cfg.MODELS_DIR) / subdir / (dest_name or filename)
             url = f"{_HF_BASE}/{hf_repo}/resolve/main/{filename}"
             headers = {}
             if _cfg.HF_TOKEN:

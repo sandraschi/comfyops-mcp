@@ -15,7 +15,7 @@
   },
   "11": {
     "class_type": "CLIPLoader",
-    "inputs": { "clip_name": "models_t5_umt5-xxl-enc-quanto_int8.safetensors", "type": "flux2" }
+    "inputs": { "clip_name": "mistral_3_small_flux2_fp8.safetensors", "type": "flux2" }
   },
   "12": {
     "class_type": "CLIPTextEncodeFlux",
@@ -68,3 +68,5 @@
     "inputs": { "filename_prefix": "comfyops_flux2", "images": ["20", 0] }
   }
 }
+
+

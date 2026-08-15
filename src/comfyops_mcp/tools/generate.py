@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 _MODEL_VRAM_MAP = {
     "flux-klein-t2i": 6.0,
+    "flux2-klein-t2i": 8.0,
     "flux-dev-t2i": 12.0,
     "flux-schnell-t2i": 12.0,
     "flux2-t2i": 10.0,

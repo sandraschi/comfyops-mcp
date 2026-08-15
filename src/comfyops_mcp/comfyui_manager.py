@@ -74,6 +74,21 @@ async def check_vram(model_vram_gb: float = 4.0) -> dict:
     return {"ok": True, "vram_free": round(vram_free_gb, 1), "required": model_vram_gb}
 
 
+async def free_vram() -> dict:
+    """Ask ComfyUI to unload models and free VRAM after a job.
+
+    ComfyUI keeps the text encoder and unet resident between jobs, which makes
+    the next generation's VRAM guard fail with a stale low-free reading.
+    """
+    try:
+        client = get_client()
+        r = await client.post("/free", json={"unload_models": True, "free_memory": True}, timeout=15)
+        return {"ok": r.status_code == 200}
+    except Exception as exc:
+        logger.warning("free_vram failed: %s", exc)
+        return {"ok": False}
+
+
 async def queue_prompt(workflow_json: dict) -> dict:
     """Submit a workflow JSON to ComfyUI's /prompt endpoint.
 
@@ -114,7 +129,13 @@ async def wait_for_result(prompt_id: str, timeout: int | None = None) -> dict:
     start = time.time()
     while time.time() - start < actual_timeout:
         await asyncio.sleep(1)
-        r = await client.get(f"/history/{prompt_id}", timeout=10)
+        try:
+            r = await client.get(f"/history/{prompt_id}", timeout=30)
+        except (httpx.ReadTimeout, httpx.ConnectError, httpx.ReadError):
+            # ComfyUI can stall its HTTP loop while loading/offloading models -
+            # never crash the poll on a slow response, just retry.
+            logger.warning("History poll for %s timed out - retrying", prompt_id)
+            continue
         if r.status_code == 200:
             history = r.json()
             if prompt_id not in history:
@@ -125,6 +146,7 @@ async def wait_for_result(prompt_id: str, timeout: int | None = None) -> dict:
             status_str = status.get("status_str", "")
             completed = status.get("completed", False)
             if completed or status_str == "success" or outputs:
+                await free_vram()
                 return {"ok": True, "outputs": _gather_outputs(outputs), "prompt_id": prompt_id}
             if status_str in ("error", "failed"):
                 messages = status.get("messages", [])
