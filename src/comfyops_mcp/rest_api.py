@@ -10,7 +10,7 @@ from pathlib import Path
 
 import httpx
 from starlette.requests import Request
-from starlette.responses import FileResponse, JSONResponse
+from starlette.responses import FileResponse, JSONResponse, Response
 
 from comfyops_mcp import config as _cfg
 from comfyops_mcp.comfyui_manager import (
@@ -395,6 +395,205 @@ async def api_gallery_recent(request: Request) -> JSONResponse:
     limit = int(request.query_params.get("limit", "20"))
     items = _library_recent(limit)
     return JSONResponse({"success": True, "items": items})
+
+
+def _row_to_item(r) -> dict:
+    try:
+        outputs = json.loads(r["outputs"] or "[]")
+    except json.JSONDecodeError:
+        outputs = []
+    return {
+        "prompt_id": r["prompt_id"],
+        "workflow_id": r["workflow_id"],
+        "prompt": r["prompt"],
+        "seed": r["seed"],
+        "model": r["model"],
+        "outputs": outputs,
+        "date": r["created_at"],
+    }
+
+
+def _library_query(
+    *,
+    limit: int = 20,
+    offset: int = 0,
+    workflow_id: str = "",
+    model: str = "",
+    q: str = "",
+    date_from: str = "",
+    date_to: str = "",
+    sort: str = "date_desc",
+) -> tuple[list[dict], int]:
+    """Filtered, sorted, paginated gallery query. Returns (items, total)."""
+    dbp = _library_db()
+    if not dbp.exists():
+        return [], 0
+    where: list[str] = []
+    params: list = []
+    if workflow_id:
+        where.append("workflow_id = ?")
+        params.append(workflow_id)
+    if model:
+        where.append("model = ?")
+        params.append(model)
+    if q:
+        where.append("(prompt LIKE ? OR workflow_id LIKE ? OR model LIKE ?)")
+        params += [f"%{q}%"] * 3
+    if date_from:
+        where.append("created_at >= ?")
+        params.append(date_from if "T" in date_from else f"{date_from}T00:00:00")
+    if date_to:
+        where.append("created_at <= ?")
+        params.append(date_to if "T" in date_to else f"{date_to}T23:59:59")
+    wsql = f"WHERE {' AND '.join(where)}" if where else ""
+    order = {
+        "date_desc": "created_at DESC, id DESC",
+        "date_asc": "created_at ASC, id ASC",
+        "prompt": "prompt ASC, created_at DESC",
+        "seed": "seed ASC, created_at DESC",
+        "workflow": "workflow_id ASC, created_at DESC",
+        "model": "model ASC, created_at DESC",
+    }.get(sort, "created_at DESC, id DESC")
+    with sqlite3.connect(str(dbp)) as conn:
+        conn.row_factory = sqlite3.Row
+        total = conn.execute(f"SELECT COUNT(*) AS c FROM generations {wsql}", params).fetchone()["c"]
+        rows = conn.execute(
+            f"SELECT prompt_id, workflow_id, prompt, seed, model, outputs, created_at "
+            f"FROM generations {wsql} ORDER BY {order} LIMIT ? OFFSET ?",
+            [*params, limit, offset],
+        ).fetchall()
+    return [_row_to_item(r) for r in rows], total
+
+
+async def api_gallery_list(request: Request) -> JSONResponse:
+    qp = request.query_params
+    try:
+        limit = min(max(int(qp.get("limit", "20")), 1), 200)
+        offset = max(int(qp.get("offset", "0")), 0)
+    except ValueError:
+        return JSONResponse({"success": False, "error": "limit/offset must be integers."}, status_code=400)
+    items, total = _library_query(
+        limit=limit,
+        offset=offset,
+        workflow_id=qp.get("workflow_id", ""),
+        model=qp.get("model", ""),
+        q=qp.get("q", ""),
+        date_from=qp.get("date_from", ""),
+        date_to=qp.get("date_to", ""),
+        sort=qp.get("sort", "date_desc"),
+    )
+    return JSONResponse(
+        {
+            "success": True,
+            "items": items,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "has_more": offset + len(items) < total,
+        }
+    )
+
+
+async def api_gallery_delete(request: Request) -> JSONResponse:
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"success": False, "error": "Invalid JSON body."}, status_code=400)
+    ids = body.get("prompt_ids") or []
+    if not isinstance(ids, list) or not ids:
+        return JSONResponse({"success": False, "error": "prompt_ids required (non-empty list)."}, status_code=400)
+    dbp = _library_db()
+    deleted = 0
+    if dbp.exists():
+        with sqlite3.connect(str(dbp)) as conn:
+            for pid in ids[:200]:
+                deleted += conn.execute("DELETE FROM generations WHERE prompt_id = ?", (pid,)).rowcount
+    return JSONResponse(
+        {
+            "success": True,
+            "deleted": deleted,
+            "message": f"Deleted {deleted} generation record(s). Output files on disk are kept.",
+        }
+    )
+
+
+async def api_gallery_export(request: Request) -> JSONResponse | Response:
+    qp = request.query_params
+    fmt = qp.get("format", "json").lower()
+    items, _ = _library_query(
+        limit=200,
+        offset=0,
+        workflow_id=qp.get("workflow_id", ""),
+        model=qp.get("model", ""),
+        q=qp.get("q", ""),
+        date_from=qp.get("date_from", ""),
+        date_to=qp.get("date_to", ""),
+        sort=qp.get("sort", "date_desc"),
+    )
+    if fmt == "csv":
+        import csv
+        import io
+
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow(["prompt_id", "workflow_id", "prompt", "seed", "model", "created_at", "outputs"])
+        for it in items:
+            writer.writerow(
+                [
+                    it["prompt_id"],
+                    it["workflow_id"],
+                    it["prompt"],
+                    it["seed"],
+                    it["model"],
+                    it["date"],
+                    ";".join(o.get("filename", "") for o in it["outputs"]),
+                ]
+            )
+        return Response(
+            content=buf.getvalue(),
+            media_type="text/csv",
+            headers={"Content-Disposition": 'attachment; filename="gallery.csv"'},
+        )
+    return JSONResponse({"success": True, "items": items, "total": len(items)})
+
+
+async def api_gallery_related(request: Request) -> JSONResponse:
+    pid = request.path_params.get("prompt_id", "")
+    dbp = _library_db()
+    if not dbp.exists():
+        return JSONResponse({"success": False, "error": "Library empty."}, status_code=404)
+    with sqlite3.connect(str(dbp)) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT prompt_id, workflow_id, prompt, seed, model, outputs, created_at "
+            "FROM generations WHERE prompt_id = ?",
+            (pid,),
+        ).fetchone()
+        if row is None:
+            return JSONResponse({"success": False, "error": "Generation not found."}, status_code=404)
+        base = _row_to_item(row)
+        rel_rows = conn.execute(
+            "SELECT prompt_id, workflow_id, prompt, seed, model, outputs, created_at "
+            "FROM generations "
+            "WHERE (workflow_id = ? OR model = ?) AND prompt_id != ? "
+            "ORDER BY created_at DESC LIMIT 24",
+            (base["workflow_id"], base["model"], pid),
+        ).fetchall()
+    items = [_row_to_item(r) for r in rel_rows]
+    return JSONResponse(
+        {
+            "success": True,
+            "base": base,
+            "crossconnects": {
+                "workflow": base["workflow_id"],
+                "model": base["model"],
+                "same_workflow_count": sum(1 for i in items if i["workflow_id"] == base["workflow_id"]),
+                "same_model_count": sum(1 for i in items if i["model"] == base["model"]),
+            },
+            "items": items,
+            "count": len(items),
+        }
+    )
 
 
 async def api_output_file(request: Request) -> FileResponse | JSONResponse:
