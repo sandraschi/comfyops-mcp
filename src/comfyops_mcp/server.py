@@ -1,4 +1,4 @@
-"""comfyops-mcp — FastMCP server for local generative AI via ComfyUI."""
+"""comfyops-mcp - FastMCP server for local generative AI via ComfyUI."""
 
 import logging
 import os
@@ -14,7 +14,7 @@ _START_TIME = _time.time()
 
 mcp = FastMCP(
     "comfyops-mcp",
-    instructions="Local generative AI engine — image, video, upscale, inpaint via ComfyUI",
+    instructions="Local generative AI engine - image, video, upscale, inpaint via ComfyUI",
     version="0.1.0",
 )
 
@@ -43,10 +43,17 @@ def register_tools():
 
 
 def main():
+    import sys
+
+    argv = sys.argv[1:]
     port = os.environ.get("MCP_PORT") or os.environ.get("PORT")
+    if "--port" in argv:
+        port = argv[argv.index("--port") + 1]
     register_tools()
-    if port:
-        _run_http(port)
+    # Fleet launcher (module-serve) passes --serve; --http is an alias.
+    # Explicit flags win, env (MCP_PORT/PORT) still works, otherwise stdio.
+    if "--serve" in argv or "--http" in argv or port:
+        _run_http(port or 11087)
     else:
         mcp.run()
 
