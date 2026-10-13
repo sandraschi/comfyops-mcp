@@ -1,4 +1,4 @@
-"""comfy_workflows portmanteau — list, get, validate, register, search, discover."""
+"""comfy_workflows portmanteau - list, get, validate, register, search, discover."""
 
 import json
 import logging
