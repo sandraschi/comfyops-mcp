@@ -1,4 +1,4 @@
-"""comfy_library portmanteau — recent, search, record."""
+"""comfy_library portmanteau - recent, search, record."""
 
 import json
 import logging

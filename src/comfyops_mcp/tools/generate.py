@@ -1,4 +1,4 @@
-"""comfy_generate portmanteau — image, video, upscale, inpaint, edit."""
+"""comfy_generate portmanteau - image, video, upscale, inpaint, edit."""
 
 import json
 import logging
@@ -127,8 +127,8 @@ def register_tools(mcp: FastMCP):
                     "installed": node_check.get("installed", []),
                     "unmapped_types": node_check.get("unmapped_types", []),
                     "suggestions": [
-                        "comfy_nodes/resolve — map class_types to Manager packages.",
-                        "comfy_nodes/install — install by package name.",
+                        "comfy_nodes/resolve - map class_types to Manager packages.",
+                        "comfy_nodes/install - install by package name.",
                         "Add _meta.required_packs to workflow JSON.",
                     ],
                 }

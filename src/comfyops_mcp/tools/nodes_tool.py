@@ -1,4 +1,4 @@
-"""comfy_nodes portmanteau — Manager status, resolve, install, ensure."""
+"""comfy_nodes portmanteau - Manager status, resolve, install, ensure."""
 
 import json
 import logging

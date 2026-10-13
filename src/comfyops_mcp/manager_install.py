@@ -1,4 +1,4 @@
-"""ComfyUI-Manager integration — resolve and install missing custom nodes."""
+"""ComfyUI-Manager integration - resolve and install missing custom nodes."""
 
 from __future__ import annotations
 
@@ -356,7 +356,7 @@ async def ensure_workflow_nodes(
             "ok": False,
             "valid": False,
             "missing_types": missing,
-            "error": "Cannot resolve packages — ComfyUI-Manager catalog unavailable.",
+            "error": "Cannot resolve packages - ComfyUI-Manager catalog unavailable.",
             "suggestions": [
                 "Install ComfyUI-Manager in custom_nodes.",
                 "Set workflow _meta.required_packs with package names.",

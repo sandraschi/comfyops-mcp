@@ -1,4 +1,4 @@
-"""Prefab UI cards for comfyops-mcp — rich in-chat displays."""
+"""Prefab UI cards for comfyops-mcp - rich in-chat displays."""
 
 from fastmcp import FastMCP
 

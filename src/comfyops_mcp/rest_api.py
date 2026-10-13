@@ -1,4 +1,4 @@
-"""REST bridge for comfyops webapp — mirrors MCP tool behavior."""
+"""REST bridge for comfyops webapp - mirrors MCP tool behavior."""
 
 from __future__ import annotations
 
@@ -177,7 +177,7 @@ async def api_comfyui_health(_request: Request) -> JSONResponse:
             "vram_total_gb": round(vram_total, 1),
             "vram_free_gb": round(vram_free, 1),
             "message": (
-                f"ComfyUI {health.get('comfyui_version', '?')} — {round(vram_free, 1)}/{round(vram_total, 1)} GB VRAM."
+                f"ComfyUI {health.get('comfyui_version', '?')} - {round(vram_free, 1)}/{round(vram_total, 1)} GB VRAM."
             ),
         }
     )
@@ -247,7 +247,7 @@ async def api_workflows_validate(request: Request) -> JSONResponse:
                 "valid": True,
                 "node_count": len(api_wf),
                 "comfyui_reachable": False,
-                "message": f"{len(api_wf)} nodes (ComfyUI offline — custom node check skipped).",
+                "message": f"{len(api_wf)} nodes (ComfyUI offline - custom node check skipped).",
             }
         )
 
@@ -632,7 +632,7 @@ async def api_prompt_enhance(request: Request) -> JSONResponse:
     system = (
         "You are an expert AI image/video prompt engineer. Rewrite the user's prompt into a "
         "detailed, high-quality generation prompt. Keep it under 120 words, one paragraph, "
-        "no commentary, no quotes, no explanation — output only the prompt."
+        "no commentary, no quotes, no explanation - output only the prompt."
     )
     if style:
         system += f" Incorporate the style/direction: {style}."

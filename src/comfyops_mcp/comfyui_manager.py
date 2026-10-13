@@ -56,7 +56,7 @@ async def check_health() -> dict:
 async def check_vram(model_vram_gb: float = 4.0) -> dict:
     """Check if sufficient VRAM is available for a job.
 
-    Returns overridden with 'ok' flags. estimate_gb is a crude heuristic —
+    Returns overridden with 'ok' flags. estimate_gb is a crude heuristic -
     actual consumption depends on the model and workflow.
     """
     health = await check_health()
@@ -151,7 +151,7 @@ async def wait_for_result(prompt_id: str, timeout: int | None = None) -> dict:
             if status_str in ("error", "failed"):
                 messages = status.get("messages", [])
                 return {"ok": False, "error": f"Generation failed: {messages}", "prompt_id": prompt_id}
-            # Still queued/running — keep polling
+            # Still queued/running - keep polling
     return {"ok": False, "error": f"Timeout after {actual_timeout}s", "prompt_id": prompt_id}
 
 

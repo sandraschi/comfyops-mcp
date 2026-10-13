@@ -1,4 +1,4 @@
-"""comfy_models portmanteau — list_installed, download, check_vram, health."""
+"""comfy_models portmanteau - list_installed, download, check_vram, health."""
 
 import hashlib
 import logging
@@ -178,7 +178,7 @@ def register_tools(mcp: FastMCP):
                 "vram_total_gb": round(vram_total, 1),
                 "vram_free_gb": round(vram_free, 1),
                 "message": (
-                    f"ComfyUI {health.get('comfyui_version', '?')} — "
+                    f"ComfyUI {health.get('comfyui_version', '?')} - "
                     f"{round(vram_free, 1)}/{round(vram_total, 1)} GB VRAM."
                 ),
             }

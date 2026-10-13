@@ -1,4 +1,4 @@
-"""comfy_agentic_assist — SEP-1577 sampling for multi-step generation."""
+"""comfy_agentic_assist - SEP-1577 sampling for multi-step generation."""
 
 import logging
 from typing import Annotated
