@@ -1,146 +1,99 @@
-﻿param(
+﻿# Fleet unified launcher - do not edit logic here.
+# Change fleet-start.config.ps1 at the repo root instead.
+param(
     [switch]$Headless,
     [switch]$BackendOnly,
     [switch]$FrontendOnly,
-    [switch]$NoBrowser
+    [switch]$NoBrowser,
+    [switch]$ReuseIfRunning
 )
 
-# --- Headless mode ---
-if ($Headless -and -not $env:COMFYOPS_MCP_HEADLESS_HANDOFF) {
-    $env:COMFYOPS_MCP_HEADLESS_HANDOFF = '1'
-    Start-Process pwsh -ArgumentList '-NoProfile', '-File', $PSCommandPath, '-Headless' -WindowStyle Hidden
-    exit
-}
-$WindowStyle = if ($Headless) { 'Hidden' } else { 'Normal' }
+$ErrorActionPreference = 'Stop'
+$ReposRoot = if ($env:FLEET_REPOS_ROOT) { $env:FLEET_REPOS_ROOT } else { 'D:\Dev\repos' }
+$EnginePath = Join-Path $ReposRoot 'mcp-central-docs\scripts\Invoke-FleetWebappStart.ps1'
 
-$ErrorActionPreference = "Stop"
-$RepoRoot = $PSScriptRoot
-$ComfyUIPort = 11086
-$ComfyUIDir = $env:COMFYOPS_COMFYUI_DIR
-if ([string]::IsNullOrWhiteSpace($ComfyUIDir)) { $ComfyUIDir = "D:\ComfyUI" }
-$BackendPort = 11087
-$FrontendPort = 11088
-$WebRoot = Join-Path $RepoRoot "web_sota"
-$HealthEndpoint = "http://127.0.0.1:$BackendPort/health"
-
-Write-Host "=== comfyops-mcp ===" -ForegroundColor Cyan
-
-# --- Prereq check ---
-function Require-Command {
-    param([string]$Cmd, [string]$WingetId, [string]$Label)
-    if (Get-Command $Cmd -ErrorAction SilentlyContinue) { return }
-    Write-Host "  $Label not found - installing via winget..." -ForegroundColor Yellow
-    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-        Write-Host "ERROR: winget unavailable. Install $Label manually." -ForegroundColor Red; exit 1
-    }
-    winget install --id $WingetId --silent --accept-source-agreements --accept-package-agreements
-    $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH","Machine") + ";" +
-                [System.Environment]::GetEnvironmentVariable("PATH","User")
-}
-
-# --- Port zombie kill ---
-foreach ($port in @($ComfyUIPort, $BackendPort, $FrontendPort)) {
-    Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue | ForEach-Object {
-        Write-Host "  Killing zombie on :$port (PID $($_.OwningProcess))" -ForegroundColor Yellow
-        Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue
+$configCandidates = @(
+    (Join-Path $PSScriptRoot 'fleet-start.config.ps1'),
+    (Join-Path (Split-Path -Parent $PSScriptRoot) 'fleet-start.config.ps1')
+)
+$configPath = $null
+foreach ($candidate in $configCandidates) {
+    if (Test-Path -LiteralPath $candidate) {
+        $configPath = $candidate
+        break
     }
 }
-Start-Sleep -Milliseconds 500
-
-# --- Frontend deps ---
-if (-not $BackendOnly -and -not (Test-Path (Join-Path $WebRoot "node_modules"))) {
-    Write-Host "Installing frontend deps..." -ForegroundColor DarkGray
-    Push-Location $WebRoot
-    npm install
-    Pop-Location
+if (-not $configPath) {
+    Write-Host 'ERROR: Missing fleet-start.config.ps1 (repo root or beside start.ps1).' -ForegroundColor Red
+    exit 1
 }
 
-# --- Start ComfyUI sidecar ---
-if (-not $BackendOnly -and -not $FrontendOnly) {
-    $ComfyUIPython = Join-Path $ComfyUIDir "venv\Scripts\python.exe"
-    if (-not (Test-Path $ComfyUIPython)) { $ComfyUIPython = Join-Path $ComfyUIDir ".venv\Scripts\python.exe" }
-    $ComfyUIMain = Join-Path $ComfyUIDir "main.py"
-    if ((Test-Path $ComfyUIMain) -and (-not (Test-Path $ComfyUIPython))) {
-        Write-Host "WARN: no python in ComfyUI venv - set COMFYOPS_COMFYUI_PYTHON" -ForegroundColor Yellow
-    }
-    if (Test-Path $ComfyUIPython) {
-        Write-Host "Starting ComfyUI on :$ComfyUIPort ..." -ForegroundColor Yellow
-        $comfyProc = Start-Process pwsh -PassThru -WindowStyle $WindowStyle -ArgumentList @(
-            "-NoProfile", "-Command", "& '$ComfyUIPython' '$ComfyUIMain' --listen 127.0.0.1 --port $ComfyUIPort"
-        )
-        $comfyOk = $false
-        for ($i = 0; $i -lt 60; $i++) {
-            try {
-                $r = Invoke-RestMethod -Uri "http://127.0.0.1:$ComfyUIPort/system_stats" -TimeoutSec 2 -ErrorAction Stop
-                if ($r.system) { $comfyOk = $true; break }
-            } catch {}
-            Start-Sleep 2
+# Mode 1: Central Fleet Engine (when mcp-central-docs is available)
+if (Test-Path -LiteralPath $EnginePath) {
+    . $EnginePath
+    Start-FleetWebapp @PSBoundParameters -ConfigPath $configPath -LauncherRoot $PSScriptRoot
+    exit 0
+}
+
+# Mode 2: Standalone Fallback (Naked install on new machine / public user clone)
+Write-Host "Central fleet engine not found ($EnginePath) - starting in standalone mode." -ForegroundColor Yellow
+
+$cfg = . $configPath
+$repoRoot = Split-Path -Parent $PSScriptRoot
+if (Test-Path (Join-Path $PSScriptRoot 'pyproject.toml')) { $repoRoot = $PSScriptRoot }
+
+$backendPort = if ($cfg.BackendPort) { [int]$cfg.BackendPort } else { 10720 }
+$frontendPort = if ($cfg.FrontendPort) { [int]$cfg.FrontendPort } else { 10721 }
+
+$webRel = if ($cfg.WebRoot) { $cfg.WebRoot } else { 'webapp\frontend' }
+$webRoot = if ([System.IO.Path]::IsPathRooted($webRel)) { $webRel } else { Join-Path $repoRoot $webRel }
+if (-not (Test-Path -LiteralPath $webRoot)) { $webRoot = $PSScriptRoot }
+
+# 1. Start Backend
+if (-not $FrontendOnly -and $backendPort -gt 0 -and $cfg.Backend.Kind -ne 'none') {
+    Write-Host "Starting backend on :$backendPort ..." -ForegroundColor Cyan
+    $bWorkDir = if ($cfg.Backend.WorkDir) {
+        if ([System.IO.Path]::IsPathRooted($cfg.Backend.WorkDir)) { $cfg.Backend.WorkDir } else { Join-Path $repoRoot $cfg.Backend.WorkDir }
+    } else { $repoRoot }
+
+    $pyPath = if ($cfg.Backend.PythonPath) {
+        $parts = $cfg.Backend.PythonPath -split ';' | ForEach-Object {
+            if ([System.IO.Path]::IsPathRooted($_)) { $_ } else { Join-Path $repoRoot $_ }
         }
-        if ($comfyOk) { Write-Host "ComfyUI ready on :$ComfyUIPort" -ForegroundColor Green }
-        else { Write-Host "WARN: ComfyUI not confirmed after 120s." -ForegroundColor Yellow }
+        $parts -join ';'
+    } else { "$repoRoot;$repoRoot\src" }
+
+    $backendExec = if ($cfg.Backend.Kind -eq 'module-serve') {
+        $mod = if ($cfg.Backend.Module) { $cfg.Backend.Module } else { $cfg.Name }
+        $args = if ($cfg.Backend.ServeArgs) { $cfg.Backend.ServeArgs } else { '--serve' }
+        "python -m $mod $args"
+    } elseif ($cfg.Backend.Kind -eq 'cli-serve') {
+        $mod = if ($cfg.Backend.Module) { $cfg.Backend.Module } else { $cfg.Name }
+        "$mod --serve --port $backendPort"
     } else {
-        Write-Host "WARN: ComfyUI not found at $ComfyUIMain - set COMFYOPS_COMFYUI_DIR" -ForegroundColor Yellow
+        $target = if ($cfg.Backend.UvicornTarget) { $cfg.Backend.UvicornTarget } else { 'app.main:app' }
+        "uvicorn $target --host 127.0.0.1 --port $backendPort"
     }
+
+    $bCmd = "`$env:PYTHONPATH = '$pyPath'; `$env:WEB_PORT = '$backendPort'; Set-Location '$bWorkDir'; uv run --project '$repoRoot' $backendExec"
+    Start-Process powershell.exe -ArgumentList @('-NoProfile', '-NoExit', '-Command', $bCmd) -WorkingDirectory $bWorkDir
 }
 
-# --- Start backend ---
-if (-not $FrontendOnly) {
-    Write-Host "Starting backend on :$BackendPort ..." -ForegroundColor Yellow
-    $env:MCP_PORT = "$BackendPort"
-    $env:MCP_HOST = "127.0.0.1"
-    $backendProc = Start-Process pwsh -PassThru -WindowStyle $WindowStyle -ArgumentList @(
-        "-NoProfile", "-Command", "C:\Users\sandr\.local\bin\uv.exe run python -m comfyops_mcp.server"
-    ) -WorkingDirectory $RepoRoot
+# 2. Start Frontend
+if (-not $BackendOnly -and $frontendPort -gt 0 -and (Test-Path -LiteralPath $webRoot)) {
+    Write-Host "Starting frontend on :$frontendPort ..." -ForegroundColor Cyan
+    if ($cfg.Frontend.PortEnvVar) { Set-Item -Path "Env:$($cfg.Frontend.PortEnvVar)" -Value "$frontendPort" }
+    if ($cfg.Frontend.ApiTargetEnv) { Set-Item -Path "Env:$($cfg.Frontend.ApiTargetEnv)" -Value "http://127.0.0.1:$backendPort" }
 
-    $ok = $false
-    for ($i = 0; $i -lt 30; $i++) {
-        try {
-            $r = Invoke-WebRequest -Uri $HealthEndpoint -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
-            if ($r.StatusCode -eq 200) { $ok = $true; break }
-        } catch {}
-        Start-Sleep 1
-    }
-    if ($ok) {
-        Write-Host "Backend ready at $HealthEndpoint" -ForegroundColor Green
+    $cmdFlag = if ($Headless) { '/c' } else { '/k' }
+    if ($cfg.Frontend.Kind -eq 'next') {
+        Start-Process cmd.exe -ArgumentList @($cmdFlag, "npm run dev -- -p $frontendPort -H 127.0.0.1") -WorkingDirectory $webRoot
     } else {
-        Write-Host "WARN: Backend not confirmed after 30s." -ForegroundColor Yellow
+        Start-Process cmd.exe -ArgumentList @($cmdFlag, "npm run dev -- --port $frontendPort --host 127.0.0.1") -WorkingDirectory $webRoot
     }
 }
 
-if ($BackendOnly) {
-    Wait-Process -Id $backendProc.Id
-    exit
-}
-
-# --- Start frontend ---
-if (-not $BackendOnly) {
-    Write-Host "Starting frontend on :$FrontendPort ..." -ForegroundColor Yellow
-    $frontendProc = Start-Process pwsh -PassThru -WindowStyle $WindowStyle -ArgumentList @(
-        "-NoProfile", "-Command", "npm run dev -- --port $FrontendPort"
-    ) -WorkingDirectory $WebRoot
-}
-
-# --- Open browser ---
-if (-not $NoBrowser -and -not $Headless) {
-    Start-Sleep 3
-    try { Start-Process "http://127.0.0.1:$FrontendPort" } catch {}
-}
-
-Write-Host "=== comfyops-mcp running ===" -ForegroundColor Cyan
-Write-Host "ComfyUI   : http://127.0.0.1:$ComfyUIPort"
-Write-Host "Backend   : http://127.0.0.1:$BackendPort"
-Write-Host "Frontend  : http://127.0.0.1:$FrontendPort"
-
-# Keep alive
-try {
-    while ($true) {
-        Start-Sleep 5
-        if ($null -ne $backendProc -and $backendProc.HasExited) {
-            Write-Host "Backend exited!" -ForegroundColor Red; break
-        }
-    }
-} finally {
-    if ($null -ne $backendProc -and -not $backendProc.HasExited) {
-        Stop-Process -Id $backendProc.Id -Force -ErrorAction SilentlyContinue
-    }
+# 3. Open Browser
+if (-not $NoBrowser -and -not $Headless -and -not $BackendOnly -and $frontendPort -gt 0) {
+    Start-Process "http://127.0.0.1:$frontendPort/"
 }

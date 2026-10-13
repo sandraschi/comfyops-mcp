@@ -1,4 +1,4 @@
-﻿# Per-repo fleet start config for comfyops-mcp
+# Per-repo fleet start config for comfyops-mcp
 # Edit ports/backend target here - start.ps1 is fleet-standard.
 @{
     Name         = 'comfyops-mcp'
@@ -11,6 +11,7 @@
         Module     = 'comfyops_mcp'
         ServeArgs  = @('--serve', '--port', '11087')
         SyncExtras = @('dev')
+        SyncOnStart  = $true
     }
     Frontend = @{
         Kind           = 'vite-npm'
