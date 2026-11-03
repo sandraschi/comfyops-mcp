@@ -26,6 +26,7 @@ def _error_response(error: str, error_type: str = "general", **kwargs) -> dict:
 
 def register_tools():
     from comfyops_mcp.tools.agentic import register_tools as reg_agentic
+    from comfyops_mcp.tools.comics import register_tools as reg_comics
     from comfyops_mcp.tools.generate import register_tools as reg_gen
     from comfyops_mcp.tools.library import register_tools as reg_lib
     from comfyops_mcp.tools.models_tool import register_tools as reg_models
@@ -39,6 +40,7 @@ def register_tools():
     reg_nodes(mcp)
     reg_lib(mcp)
     reg_agentic(mcp)
+    reg_comics(mcp)
     register_prefab_cards(mcp)
 
 

@@ -50,6 +50,12 @@ _MODEL_VRAM_MAP = {
     "esrgan-upscale": 2.0,
     "supir-restore": 8.0,
     "flux-inpaint": 10.0,
+    "flux_dev_panel": 12.0,
+    "flux_clean_balloon": 12.0,
+    "longcat-t2v": 16.0,
+    "longcat-extend": 16.0,
+    "minimax-h3-t2v": 20.0,
+    "minimax-h3-i2v": 20.0,
 }
 
 

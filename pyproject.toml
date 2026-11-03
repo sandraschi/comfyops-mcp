@@ -19,6 +19,7 @@ dependencies = [
     "python-dotenv>=1.2.2",
     "starlette>=0.37.0",
     "uvicorn>=0.29.0",
+    "websockets>=13.0",
 ]
 
 [project.optional-dependencies]
