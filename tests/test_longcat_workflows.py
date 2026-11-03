@@ -2,10 +2,9 @@
 
 import json
 from pathlib import Path
-import pytest
 
-from comfyops_mcp.tools.generate import _MODEL_VRAM_MAP
 from comfyops_mcp.comfyui_manager import get_workflow_depot
+from comfyops_mcp.tools.generate import _MODEL_VRAM_MAP
 
 
 def test_longcat_workflows_on_disk():

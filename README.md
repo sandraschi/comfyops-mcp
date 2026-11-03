@@ -2,7 +2,7 @@
 
 Wraps ComfyUI so you can generate images, video, and upscales from a prompt — without ever touching the node editor. Pick a curated workflow, type what you want, get a PNG or MP4.
 
-**FastMCP 3.4+** | 5 portmanteau tools | 27 curated workflows | ComfyUI :11086 | Backend :11087 | Dashboard :11088
+**FastMCP 3.4+** | 6 portmanteau tools | 29 curated workflows | ComfyUI :11086 | Backend :11087 | Dashboard :11088
 
 <p align="center">
   <img src="https://img.shields.io/badge/FastMCP-3.4+-7c5cfc?style=flat-square" alt="FastMCP">
@@ -92,6 +92,7 @@ Use `comfy_workflows/register` to add your own exports from the ComfyUI node edi
 | Tool | Ops |
 |------|-----|
 | `comfy_generate` | image, video, upscale, inpaint, edit |
+| `comfy_comic` | generate_panel, assemble_strip (two-pass hybrid, WS-first) |
 | `comfy_workflows` | list, get, validate, register |
 | `comfy_models` | list_installed, download, check_vram, health |
 | `comfy_library` | recent, search, record |

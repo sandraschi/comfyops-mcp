@@ -14,6 +14,14 @@ All settings via environment variables or `.env` file at repo root.
 | `COMFYOPS_DATA_DIR` | `data/` | SQLite library + job queue storage |
 | `PORT` | `11087` | Backend FastMCP HTTP port |
 
+## Comic / Artifacts (Drive 2026-11-03)
+
+Artifacts persist under `{DATA_DIR}/artifacts/comics/` with file URIs + Markdown
+previews (zero base64 in JSON-RPC). Rolling GC keeps newest 200 files / 5 GB.
+Execution is WS-first (`/ws` via `websockets>=13.0`) with `/history` poll fallback.
+
+New templates: `flux_dev_panel`, `flux_clean_balloon` (two-pass hybrid).
+
 ## Generation
 
 | Variable | Default | Description |

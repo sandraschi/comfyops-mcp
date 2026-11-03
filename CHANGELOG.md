@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0 (2026-11-03) - Drive cartoon spec
+
+- **comfy_comic**: generate_panel (style presets vintage_pulp/modern_graphic_novel/ligne_claire,
+  verbatim_dialogue <=12 words, WS-first) + assemble_strip (horizontal_strip/grid_2x2, PIL)
+- **comfy_ws.py**: async `/ws` telemetry (queue_and_stream, stream_to_completion), poll fallback
+- **templates.py**: declarative TemplateEngine.load_and_patch (class_type routing)
+- **storage.py**: ArtifactManager disk URIs + MD previews + 200-file/5GB GC (zero base64)
+- **workflows**: flux_dev_panel + flux_clean_balloon (two-pass hybrid pass-1)
+- **deps**: websockets>=13.0; 29 curated workflows; docs TOOLS/CONFIGURATION/README updated
+- Source: Google Drive 2026-11-03 Cartoon Generation Workflows doc
+
 ## 0.1.1 (2026-08-15)
 
 - **comfy_models download**: HF Hub streaming download with optional sha256 verification,

@@ -54,6 +54,34 @@ Manage local models, download from Hugging Face (hash-verified), and check GPU s
 | `operation` | Literal | Yes | Operation |
 | `model_vram_gb` | float | For check_vram | Estimated VRAM requirement |
 
+## comfy_comic
+
+Panel-by-panel cartoon generation + strip assembly (Drive 2026-11-03 two-pass hybrid).
+
+**Operations:** generate_panel, assemble_strip
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `operation` | Literal | Yes | generate_panel or assemble_strip |
+| `prompt` | str | For generate_panel | Scene prompt, dialogue excluded (art pass) |
+| `verbatim_dialogue` | str | No | Short exact text <=12 words for T5 orthography |
+| `style_preset` | Literal | No | vintage_pulp, modern_graphic_novel, ligne_claire |
+| `template` | str | No | flux_dev_panel (default) or flux_clean_balloon |
+| `width` / `height` | int | No | Panel dims, default 1024x1024 |
+| `seed` | int | No | Reproducibility seed |
+| `panel_paths` | list[str] | For assemble_strip | Local PNGs left-to-right (4 for grid_2x2) |
+| `layout` | Literal | No | horizontal_strip or grid_2x2 |
+| `gutter_width` | int | No | Gutter px, default 24 |
+
+**Returns generate_panel:** `{success, panel_path, markdown_preview, seed_used}`
+**Returns assemble_strip:** `{success, strip_path, dimensions}`
+
+Execution is WS-first (`/ws` streaming via `comfy_ws.py`) with `/history` poll fallback.
+Artifacts persist to disk (`data/artifacts/comics/`) — zero base64 in JSON-RPC.
+
+**Templates:** `flux_dev_panel` (scene + short text), `flux_clean_balloon`
+(empty balloon space, dialogue composited deterministically in pass 2).
+
 ## comfy_library
 
 Browse and record generations.

@@ -102,6 +102,67 @@ def ui_to_api(workflow: dict[str, Any], object_info: dict[str, Any] | None = Non
     return api
 
 
+def api_to_ui(workflow: dict[str, Any]) -> dict[str, Any]:
+    """Minimal API -> canvas conversion with topological 2D placement.
+
+    Inverse of ui_to_api for dashboard previews. Computes depth by following
+    [node_id, slot] input links; x = depth * 320, y = order * 160.
+    """
+    api = strip_meta(workflow)
+    ids = [k for k, v in api.items() if isinstance(v, dict) and "class_type" in v]
+    depth: dict[str, int] = {}
+
+    def _depth(nid: str, seen: set[str] | None = None) -> int:
+        if nid in depth:
+            return depth[nid]
+        seen = seen or set()
+        if nid in seen:
+            return 0
+        seen.add(nid)
+        node = api.get(nid, {})
+        inputs = node.get("inputs", {}) if isinstance(node, dict) else {}
+        parents = [v[0] for v in inputs.values() if isinstance(v, list) and len(v) == 2 and str(v[0]) in api]
+        depth[nid] = 0 if not parents else max(_depth(str(p), seen) + 1 for p in parents)
+        return depth[nid]
+
+    for nid in ids:
+        _depth(str(nid))
+
+    by_depth: dict[int, list[str]] = {}
+    for nid in ids:
+        by_depth.setdefault(depth[str(nid)], []).append(str(nid))
+
+    nodes: list[dict[str, Any]] = []
+    links: list[list[Any]] = []
+    link_id = 1
+    int_ids = sorted(int(n) for n in ids if str(n).isdigit())
+    id_map = {str(n): idx + 1 for idx, n in enumerate(int_ids)}
+    id_map.update({n: idx + 1 + len(id_map) for idx, n in enumerate(ids) if n not in id_map})
+
+    for d in sorted(by_depth):
+        for order, nid in enumerate(sorted(by_depth[d], key=lambda x: int(x) if x.isdigit() else x)):
+            node = api[nid]
+            nodes.append(
+                {
+                    "id": id_map[nid],
+                    "type": node.get("class_type"),
+                    "pos": [d * 320, order * 160],
+                    "inputs": [{"name": k} for k in node.get("inputs", {})],
+                    "widgets_values": [
+                        v for v in node.get("inputs", {}).values() if not (isinstance(v, list) and len(v) == 2)
+                    ],
+                }
+            )
+    for nid in ids:
+        node = api[nid]
+        for slot_idx, (_name, val) in enumerate(node.get("inputs", {}).items()):
+            if isinstance(val, list) and len(val) == 2 and str(val[0]) in id_map:
+                links.append([link_id, id_map[str(val[0])], int(val[1]), id_map[nid], slot_idx, "*"])
+                link_id += 1
+
+    return {"nodes": nodes, "links": links, "groups": [], "version": 0.4}
+
+
 def normalize_for_prompt(
     workflow: dict[str, Any],
     object_info: dict[str, Any] | None = None,
